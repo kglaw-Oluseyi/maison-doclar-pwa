@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id             String    @id @default(uuid())
+  slug           String    @unique
+  name           String
+  date           DateTime
+  endDate        DateTime?
+  location       String
+  address        String
+  coordinates    String?
+  dressCode      String?
+  description    String?
+  rsvpOpen       Boolean   @default(true)
+  designConfig   Json      @default("{}")
+  itinerary      Json      @default("[]")
+  contacts       Json      @default("[]")
+  whatsappNumber String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  guests         Guest[]
+}
+
+model Guest {
+  id           String     @id @default(uuid())
+  eventId      String
+  event        Event      @relation(fields: [eventId], references: [id])
+  accessToken  String     @unique @default(uuid())
+  name         String
+  email        String?
+  rsvpStatus   RSVPStatus @default(PENDING)
+  rsvpDetails  Json       @default("{}")
+  tags         String[]   @default([])
+  tableNumber  String?
+  dietaryNotes String?
+  specialNotes String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+enum RSVPStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
