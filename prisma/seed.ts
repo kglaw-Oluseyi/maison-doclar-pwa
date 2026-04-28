@@ -61,6 +61,8 @@ async function main() {
     where: { slug: eventSlug },
     update: {
       name: 'Maison Doclar Gala 2026',
+      status: 'CONCLUDED',
+      timezone: 'Europe/Paris',
       date: new Date('2026-03-14T18:30:00.000Z'),
       endDate: new Date('2026-03-14T23:30:00.000Z'),
       location: 'Hôtel de Ville — Grand Salon',
@@ -79,6 +81,32 @@ async function main() {
         requestFormEnabled: true,
         requestFormTypes: ['DIETARY', 'TRANSPORT', 'ACCESSIBILITY', 'PLUS_ONE', 'GENERAL'],
       },
+      featureFlags: {
+        walletPassEnabled: true,
+        postEventEnabled: true,
+        communicationLogEnabled: true,
+        guestGroupsEnabled: true,
+        invitationTrackingEnabled: true,
+        dietaryExportEnabled: true,
+        accessibilityExportEnabled: true,
+        feedbackFormEnabled: true,
+      },
+      postEventConfig: {
+        thankYouMessage: 'Thank you for joining us.',
+        thankYouSubtext: 'Your presence made the evening unforgettable.',
+        galleryEnabled: true,
+        galleryImages: [
+          'https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?auto=format&fit=crop&w=1200&q=80',
+          'https://images.unsplash.com/photo-1520975916090-3105956dac38?auto=format&fit=crop&w=1200&q=80',
+        ],
+        feedbackEnabled: true,
+        feedbackQuestions: [
+          { id: 'q1', question: 'How was your overall experience?', type: 'rating' },
+          { id: 'q2', question: 'Any notes for next year?', type: 'text' },
+        ],
+        followUpLinks: [{ label: 'Maison Doclar', url: 'https://maisondoclar.com' }],
+        activatesAt: new Date().toISOString(),
+      },
       itinerary,
       contacts,
       whatsappNumber: '33798765432',
@@ -86,6 +114,8 @@ async function main() {
     create: {
       slug: eventSlug,
       name: 'Maison Doclar Gala 2026',
+      status: 'CONCLUDED',
+      timezone: 'Europe/Paris',
       date: new Date('2026-03-14T18:30:00.000Z'),
       endDate: new Date('2026-03-14T23:30:00.000Z'),
       location: 'Hôtel de Ville — Grand Salon',
@@ -103,6 +133,32 @@ async function main() {
         pollingTitle: 'Live Polling',
         requestFormEnabled: true,
         requestFormTypes: ['DIETARY', 'TRANSPORT', 'ACCESSIBILITY', 'PLUS_ONE', 'GENERAL'],
+      },
+      featureFlags: {
+        walletPassEnabled: true,
+        postEventEnabled: true,
+        communicationLogEnabled: true,
+        guestGroupsEnabled: true,
+        invitationTrackingEnabled: true,
+        dietaryExportEnabled: true,
+        accessibilityExportEnabled: true,
+        feedbackFormEnabled: true,
+      },
+      postEventConfig: {
+        thankYouMessage: 'Thank you for joining us.',
+        thankYouSubtext: 'Your presence made the evening unforgettable.',
+        galleryEnabled: true,
+        galleryImages: [
+          'https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?auto=format&fit=crop&w=1200&q=80',
+          'https://images.unsplash.com/photo-1520975916090-3105956dac38?auto=format&fit=crop&w=1200&q=80',
+        ],
+        feedbackEnabled: true,
+        feedbackQuestions: [
+          { id: 'q1', question: 'How was your overall experience?', type: 'rating' },
+          { id: 'q2', question: 'Any notes for next year?', type: 'text' },
+        ],
+        followUpLinks: [{ label: 'Maison Doclar', url: 'https://maisondoclar.com' }],
+        activatesAt: new Date().toISOString(),
       },
       itinerary,
       contacts,
@@ -202,6 +258,9 @@ async function main() {
           tableNumber: g.tableNumber,
           dietaryNotes: g.dietaryNotes,
           specialNotes: g.specialNotes,
+          invitedAt: g.accessToken === guests[0].accessToken ? new Date() : null,
+          invitationChannel: g.accessToken === guests[0].accessToken ? 'MANUAL' : null,
+          accessibilityNotes: null,
         },
         create: {
           eventId: event.id,
@@ -214,6 +273,9 @@ async function main() {
           tableNumber: g.tableNumber,
           dietaryNotes: g.dietaryNotes,
           specialNotes: g.specialNotes,
+          invitedAt: g.accessToken === guests[0].accessToken ? new Date() : null,
+          invitationChannel: g.accessToken === guests[0].accessToken ? 'MANUAL' : null,
+          accessibilityNotes: null,
         },
       })
 
@@ -237,6 +299,30 @@ async function main() {
 
   const firstGuest = await prisma.guest.findFirst({ where: { eventId: event.id }, orderBy: { createdAt: 'asc' } })
   if (!firstGuest) return
+
+  const group = await prisma.guestGroup.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000010' },
+    update: {
+      eventId: event.id,
+      name: 'Primary Group',
+      primaryGuestId: firstGuest.id,
+      maxSize: 3,
+      overflowMessage: 'Need to add more guests? Send us a message through the app.',
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000010',
+      eventId: event.id,
+      name: 'Primary Group',
+      primaryGuestId: firstGuest.id,
+      maxSize: 3,
+      overflowMessage: 'Need to add more guests? Send us a message through the app.',
+    },
+  })
+
+  await prisma.guest.update({
+    where: { id: firstGuest.id },
+    data: { groupId: group.id },
+  })
 
   const dressCodeScheduledAt = new Date(event.date.getTime() - 7 * 24 * 60 * 60 * 1000)
   const scheduleScheduledAt = new Date(event.date.getTime() - 24 * 60 * 60 * 1000)

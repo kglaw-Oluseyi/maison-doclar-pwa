@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server'
 import { apiError } from '@/lib/api'
 import { requireDashboardSession, DashboardAuthError } from '@/lib/dashboard-auth'
 import { prisma } from '@/lib/prisma'
+import { logCommunication } from '@/lib/communication-log'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -60,6 +61,21 @@ export async function PATCH(
       guest: { select: { id: true, name: true, email: true } },
     },
   })
+
+  if (updated.status === 'ACKNOWLEDGED' || updated.status === 'RESOLVED') {
+    try {
+      void logCommunication({
+        guestId: updated.guest.id,
+        eventId: event.id,
+        type: updated.status === 'ACKNOWLEDGED' ? 'REQUEST_ACKNOWLEDGED' : 'REQUEST_RESOLVED',
+        channel: 'DASHBOARD',
+        summary: `Request status updated to ${updated.status}`,
+        metadata: { requestId: updated.id, status: updated.status },
+      })
+    } catch {
+      // ignore
+    }
+  }
 
   return NextResponse.json({
     id: updated.id,

@@ -31,8 +31,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
   const event = await prisma.event.findUnique({ where: { slug }, select: { id: true } })
   if (!event) return apiError('Event not found', 'EVENT_NOT_FOUND', 404)
 
+  const idsParam = request.nextUrl.searchParams.get('ids')
+  const ids = idsParam
+    ? idsParam
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : null
+
   const guests = await prisma.guest.findMany({
-    where: { eventId: event.id },
+    where: { eventId: event.id, ...(ids && ids.length ? { id: { in: ids } } : {}) },
     orderBy: { createdAt: 'desc' },
     select: {
       name: true,

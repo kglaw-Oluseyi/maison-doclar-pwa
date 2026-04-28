@@ -6,15 +6,12 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
 export function HostAccessCard({ slug }: { slug: string }) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL
-  const base =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : appUrl
-        ? appUrl.replace(/\/$/, '')
-        : ''
-  const hostUrl = `${base}/host/${slug}`
+  const [hostUrl, setHostUrl] = React.useState('')
   const [copied, setCopied] = React.useState(false)
+
+  React.useEffect(() => {
+    setHostUrl(`${window.location.origin}/host/${slug}`)
+  }, [slug])
 
   async function copy() {
     try {
@@ -37,15 +34,11 @@ export function HostAccessCard({ slug }: { slug: string }) {
           <div className="text-[11px] uppercase tracking-[0.12em] text-md-text-muted">Host login URL</div>
           <div className="mt-2 break-all text-sm text-md-text-primary">{hostUrl}</div>
           <div className="mt-3">
-            <Button type="button" variant="secondary" size="sm" onClick={() => void copy()}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => void copy()} disabled={!hostUrl}>
               {copied ? 'Copied' : 'Copy URL'}
             </Button>
           </div>
-          {!appUrl ? (
-            <div className="mt-3 text-xs text-md-warning">
-              Set <code>NEXT_PUBLIC_APP_URL</code> to show the full absolute URL.
-            </div>
-          ) : null}
+          {!hostUrl ? <div className="mt-3 text-xs text-md-text-muted">Preparing URL…</div> : null}
         </div>
 
         <div className="rounded-2xl border border-md-border bg-md-surface p-4">

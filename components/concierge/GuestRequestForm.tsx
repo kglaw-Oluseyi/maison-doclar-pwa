@@ -39,6 +39,17 @@ export function GuestRequestForm({
 
   const remaining = 1000 - message.length
 
+  React.useEffect(() => {
+    function onPrefill(e: Event) {
+      const detail = (e as CustomEvent<{ type?: string; message?: string }>).detail
+      if (!detail || typeof detail !== 'object') return
+      if (detail.type && typeof detail.type === 'string' && types.includes(detail.type)) setType(detail.type)
+      if (detail.message && typeof detail.message === 'string') setMessage(detail.message)
+    }
+    window.addEventListener('md-prefill-request', onPrefill as any)
+    return () => window.removeEventListener('md-prefill-request', onPrefill as any)
+  }, [types])
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (submitting) return

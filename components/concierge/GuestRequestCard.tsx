@@ -14,7 +14,7 @@ export function GuestRequestCard({
 
   return (
     <Card title="Requests">
-      <div className="space-y-2">
+      <div className="space-y-2" id="md-requests">
         <div className="text-sm text-md-text-muted">
           Dietary changes, transport, accessibility, plus-one updates — send a note to the concierge team.
         </div>

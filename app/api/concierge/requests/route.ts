@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { apiError } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
+import { logCommunication } from '@/lib/communication-log'
 
 type RequestBody = { type?: unknown; message?: unknown }
 
@@ -72,6 +73,19 @@ export async function POST(request: NextRequest) {
       updatedAt: true,
     },
   })
+
+  try {
+    void logCommunication({
+      guestId: guest.id,
+      eventId: guest.event.id,
+      type: 'REQUEST_SUBMITTED',
+      channel: 'IN_APP',
+      summary: `Request submitted (${type})`,
+      metadata: { requestId: created.id, type },
+    })
+  } catch {
+    // ignore
+  }
 
   return NextResponse.json({
     ...created,

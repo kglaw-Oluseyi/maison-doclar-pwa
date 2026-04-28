@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/Button'
 import { RequestsTable } from '@/components/dashboard/RequestsTable'
 import { RemindersManager } from '@/components/dashboard/RemindersManager'
 import { HostAccessCard } from '@/components/dashboard/HostAccessCard'
+import { CommunicationLogTable } from '@/components/dashboard/CommunicationLogTable'
+import { EventStatusControl } from '@/components/dashboard/EventStatusControl'
 
 type RSVPStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED'
 
@@ -32,9 +34,14 @@ export default async function DashboardEventPage(props: { params: Promise<{ slug
 
   const event = await prisma.event.findUnique({
     where: { slug },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, featureFlags: true, status: true },
   })
   if (!event) notFound()
+
+  const flags =
+    event.featureFlags && typeof event.featureFlags === 'object' && !Array.isArray(event.featureFlags)
+      ? (event.featureFlags as Record<string, unknown>)
+      : {}
 
   const guests = await prisma.guest.findMany({
     where: { eventId: event.id },
@@ -84,10 +91,28 @@ export default async function DashboardEventPage(props: { params: Promise<{ slug
                 </Button>
               </a>
               <ExportButton slug={event.slug} />
+            {flags.dietaryExportEnabled === true ? (
+              <a
+                href={`/api/dashboard/events/${event.slug}/exports/dietary`}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-md-border bg-md-surface px-4 text-sm text-md-text-primary hover:bg-md-surface-elevated"
+              >
+                Dietary CSV
+              </a>
+            ) : null}
+            {flags.accessibilityExportEnabled === true ? (
+              <a
+                href={`/api/dashboard/events/${event.slug}/exports/accessibility`}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-md-border bg-md-surface px-4 text-sm text-md-text-primary hover:bg-md-surface-elevated"
+              >
+                Accessibility CSV
+              </a>
+            ) : null}
             </div>
           </div>
 
           <CheckInStats stats={checkInStats} />
+
+          <EventStatusControl slug={event.slug} initialStatus={event.status as any} />
 
           <RSVPStats
             total={guests.length}
@@ -117,6 +142,15 @@ export default async function DashboardEventPage(props: { params: Promise<{ slug
           </div>
 
           <HostAccessCard slug={event.slug} />
+
+          {flags.communicationLogEnabled === true ? (
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.22em] text-md-text-muted">Guest Communication</div>
+              <div className="mt-4">
+                <CommunicationLogTable eventSlug={event.slug} />
+              </div>
+            </div>
+          ) : null}
         </div>
       </main>
     </div>

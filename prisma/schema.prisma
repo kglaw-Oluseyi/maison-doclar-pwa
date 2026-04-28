@@ -11,6 +11,8 @@ model Event {
   id             String    @id @default(uuid())
   slug           String    @unique
   name           String
+  status         EventStatus @default(DRAFT)
+  timezone       String    @default("Europe/London")
   date           DateTime
   endDate        DateTime?
   location       String
@@ -21,6 +23,8 @@ model Event {
   rsvpOpen       Boolean   @default(true)
   designConfig   Json      @default("{}")
   contentConfig  Json      @default("{}")
+  postEventConfig Json     @default("{}")
+  featureFlags    Json     @default("{}")
   itinerary      Json      @default("[]")
   contacts       Json      @default("[]")
   whatsappNumber String?
@@ -35,6 +39,12 @@ model Event {
   reminders     Reminder[]
   guestRequests GuestRequest[]
   hostUsers     HostUser[]
+  guestGroups       GuestGroup[]
+  communicationLogs CommunicationLog[]
+  feedbackResponses FeedbackResponse[]
+  apiKeys           ApiKey[]
+  apiConfig         ApiConfig?
+  mediaItems        MediaItem[]
 }
 
 model Guest {
@@ -50,18 +60,94 @@ model Guest {
   tableNumber  String?
   dietaryNotes String?
   specialNotes String?
+  invitedAt             DateTime?
+  invitationChannel     InvitationChannel?
+  portalFirstVisitedAt  DateTime?
+  portalVisitCount      Int      @default(0)
+  accessibilityNotes    String?
+  isPa                  Boolean  @default(false)
+  managedGuestId        String?
+  managedGuest          Guest?   @relation("PaRelation", fields: [managedGuestId], references: [id])
+  paGuests              Guest[]  @relation("PaRelation")
+  groupId               String?
+  group                 GuestGroup? @relation(fields: [groupId], references: [id])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   accessCard    AccessCard?
   checkIn       CheckInLog?
   reminders     ReminderReceipt[]
   guestRequests GuestRequest[]
+  communicationLogs CommunicationLog[]
+  feedbackResponses FeedbackResponse[]
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  LIVE
+  CONCLUDED
+  ARCHIVED
 }
 
 enum RSVPStatus {
   PENDING
   ACCEPTED
   DECLINED
+}
+
+enum InvitationChannel {
+  WHATSAPP
+  EMAIL
+  MANUAL
+}
+
+model GuestGroup {
+  id              String   @id @default(uuid())
+  eventId         String
+  event           Event    @relation(fields: [eventId], references: [id])
+  name            String
+  primaryGuestId  String?
+  maxSize         Int      @default(1)
+  overflowMessage String   @default("Need to add more guests? Send us a message through the app.")
+  createdAt       DateTime @default(now())
+  members         Guest[]
+}
+
+model CommunicationLog {
+  id       String   @id @default(uuid())
+  guestId  String
+  guest    Guest    @relation(fields: [guestId], references: [id])
+  eventId  String
+  event    Event    @relation(fields: [eventId], references: [id])
+  type     CommunicationLogType
+  channel  String?
+  summary  String
+  metadata Json     @default("{}")
+  createdAt DateTime @default(now())
+}
+
+enum CommunicationLogType {
+  INVITATION_SENT
+  REMINDER_DELIVERED
+  REQUEST_SUBMITTED
+  REQUEST_ACKNOWLEDGED
+  REQUEST_RESOLVED
+  QR_REGENERATED
+  PORTAL_VISITED
+  RSVP_SUBMITTED
+  WALLET_PASS_GENERATED
+}
+
+model FeedbackResponse {
+  id        String   @id @default(uuid())
+  guestId   String
+  guest     Guest    @relation(fields: [guestId], references: [id])
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  responses Json
+  createdAt DateTime @default(now())
+
+  @@unique([guestId, eventId])
 }
 
 model Reminder {
@@ -208,5 +294,44 @@ model QrAuditLog {
 enum CheckInMethod {
   QR_SCAN
   MANUAL
+}
+
+model ApiKey {
+  id          String   @id @default(uuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  label       String
+  keyHash     String   @unique
+  permissions Json     @default("{}")
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+
+  @@index([eventId])
+}
+
+model ApiConfig {
+  id                 String   @id @default(uuid())
+  eventId             String   @unique
+  event               Event    @relation(fields: [eventId], references: [id])
+  integrationMode     String   @default("STANDALONE") // STANDALONE | INTEGRATED | HYBRID
+  osBaseUrl           String?
+  osWebhookUrl        String?
+  webhookSubscriptions Json    @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model MediaItem {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  name      String
+  url       String
+  type      String
+  size      Int
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
 }
 

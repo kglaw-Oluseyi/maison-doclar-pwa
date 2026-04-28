@@ -127,7 +127,21 @@ export default async function DashboardLoginPage() {
       <div className="mx-auto flex min-h-[100svh] max-w-[480px] flex-col justify-center px-6 py-12">
         <div className="mb-10 text-center">
           <div className="font-[family-name:var(--md-font-heading)] text-3xl font-light text-md-accent">
-            Maison Doclar OS
+            <a
+              href="https://maisondoclar.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontFamily: 'var(--md-font-heading)',
+                fontSize: '0.875rem',
+                letterSpacing: '0.3em',
+                textTransform: 'uppercase',
+                color: 'var(--md-accent)',
+                textDecoration: 'none',
+              }}
+            >
+              Maison Doclar
+            </a>
           </div>
           <div className="mt-2 text-sm text-md-text-muted">Dashboard access</div>
         </div>

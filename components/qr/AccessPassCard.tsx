@@ -1,30 +1,33 @@
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { generateQrDataUrl } from '@/lib/qr'
+import { formatDateInTimezone } from '@/lib/format'
+import { WalletButtons } from '@/components/qr/WalletButtons'
 
 interface AccessPassCardProps {
   guestName: string
   eventName: string
   eventDate: Date
+  timezone?: string
+  walletPassEnabled?: boolean
+  accessToken?: string
   tableNumber: string | null
   tags: string[]
   qrToken: string
   releasedAt: Date | null
 }
 
-function formatLongDate(date: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
+function formatLongDate(date: Date, timezone?: string): string {
+  return timezone ? formatDateInTimezone(date, timezone) : formatDateInTimezone(date, 'Europe/London')
 }
 
 export async function AccessPassCard({
   guestName,
   eventName,
   eventDate,
+  timezone,
+  walletPassEnabled,
+  accessToken,
   tableNumber,
   tags,
   qrToken,
@@ -51,7 +54,7 @@ export async function AccessPassCard({
         <div className="text-center">
           <div className="font-[family-name:var(--md-font-heading)] text-3xl font-light">{guestName}</div>
           <div className="mt-2 text-sm text-md-text-muted">
-            {eventName} · {formatLongDate(eventDate)}
+            {eventName} · {formatLongDate(eventDate, timezone)}
           </div>
           {isVip ? (
             <div className="mt-4 inline-flex items-center justify-center">
@@ -82,6 +85,8 @@ export async function AccessPassCard({
           ) : null}
           <div className="mt-2 text-sm text-md-text-muted">Present this pass at entry.</div>
         </div>
+
+        {walletPassEnabled && accessToken ? <WalletButtons accessToken={accessToken} /> : null}
       </div>
     </Card>
   )

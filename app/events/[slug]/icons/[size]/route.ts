@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
+import path from 'node:path'
+import fs from 'node:fs/promises'
 
 import { prisma } from '@/lib/prisma'
 
@@ -34,6 +36,21 @@ function svgPlaceholder(letter: string): string {
 export async function GET(_req: NextRequest, { params }: { params: { slug: string; size: string } }) {
   const parsed = parseSize(params.size)
   if (!parsed) return new NextResponse('Not found', { status: 404 })
+
+  const filePath = path.join(
+    process.cwd(),
+    'public',
+    'events',
+    params.slug,
+    'icons',
+    parsed.maskable ? '512-maskable.png' : `${parsed.size}.png`,
+  )
+  const existing = await fs.readFile(filePath).catch(() => null)
+  if (existing) {
+    return new NextResponse(existing as unknown as BodyInit, {
+      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' },
+    })
+  }
 
   const event = await prisma.event.findUnique({
     where: { slug: params.slug },

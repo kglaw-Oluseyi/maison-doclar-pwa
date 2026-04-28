@@ -1,14 +1,16 @@
 import { Card } from '@/components/ui/Card'
+import { formatDateInTimezone } from '@/lib/format'
 
 export interface EventSummaryCardProps {
   eventName: string
   eventDate: Date
+  timezone: string
   venue: string
   daysUntilEvent: number
   eventMode: 'pre-event' | 'event-day' | 'post-event'
 }
 
-export function EventSummaryCard({ eventName, venue, daysUntilEvent, eventMode }: EventSummaryCardProps) {
+export function EventSummaryCard({ eventName, eventDate, timezone, venue, daysUntilEvent, eventMode }: EventSummaryCardProps) {
   return (
     <Card noPadding>
       <style>{`
@@ -22,6 +24,15 @@ export function EventSummaryCard({ eventName, venue, daysUntilEvent, eventMode }
         <div className="min-w-0">
           <div className="truncate font-[family-name:var(--md-font-heading)] text-3xl font-light">{eventName}</div>
           <div className="mt-2 text-sm text-md-text-muted">{venue}</div>
+          <p
+            style={{
+              fontSize: '0.875rem',
+              color: 'var(--md-text-muted)',
+              marginTop: '4px',
+            }}
+          >
+            {formatDateInTimezone(new Date(eventDate), timezone)}
+          </p>
         </div>
 
         <div className="shrink-0">

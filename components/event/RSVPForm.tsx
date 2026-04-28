@@ -12,6 +12,7 @@ type RSVPDetails = {
   plusOneName?: string
   dietaryRequirements?: string
   message?: string
+  groupMembers?: Array<{ name: string; dietaryNotes?: string }>
 }
 
 type RSVPFormProps = {
@@ -91,6 +92,33 @@ export function RSVPForm({ slug, token, onSuccess }: RSVPFormProps) {
   const [dietaryRequirements, setDietaryRequirements] = React.useState('')
   const [message, setMessage] = React.useState('')
 
+  const [group, setGroup] = React.useState<{ id: string; maxSize: number; overflowMessage: string } | null>(null)
+  const [groupMembers, setGroupMembers] = React.useState<Array<{ name: string; dietaryNotes: string }>>([])
+
+  React.useEffect(() => {
+    let cancelled = false
+    async function loadGroup() {
+      const res = await fetch(`/api/events/${encodeURIComponent(slug)}/group?token=${encodeURIComponent(token)}`, {
+        cache: 'no-store',
+      }).catch(() => null)
+      if (!res || !res.ok) return
+      const data = (await res.json().catch(() => null)) as { group?: any } | null
+      if (cancelled) return
+      const g = data?.group
+      if (g && typeof g === 'object') {
+        setGroup({
+          id: String(g.id),
+          maxSize: Number(g.maxSize) || 1,
+          overflowMessage: typeof g.overflowMessage === 'string' ? g.overflowMessage : 'Need to add more guests? Send us a message through the app.',
+        })
+      }
+    }
+    void loadGroup()
+    return () => {
+      cancelled = true
+    }
+  }, [slug, token])
+
   async function submitDecline() {
     setInflight(true)
     setError(null)
@@ -107,6 +135,12 @@ export function RSVPForm({ slug, token, onSuccess }: RSVPFormProps) {
       plusOneName: plusOneName.trim() ? plusOneName.trim() : undefined,
       dietaryRequirements: dietaryRequirements.trim() ? dietaryRequirements.trim() : undefined,
       message: message.trim() ? message.trim() : undefined,
+      groupMembers:
+        groupMembers.length > 0
+          ? groupMembers
+              .map((m) => ({ name: m.name.trim(), dietaryNotes: m.dietaryNotes.trim() ? m.dietaryNotes.trim() : undefined }))
+              .filter((m) => m.name.length > 0)
+          : undefined,
     }
     const result = await postRsvp({ slug, token, status: 'ACCEPTED', details })
     setInflight(false)
@@ -150,6 +184,79 @@ export function RSVPForm({ slug, token, onSuccess }: RSVPFormProps) {
 
         {step === 2 ? (
           <div className="space-y-5">
+            {group && group.maxSize > 1 ? (
+              <div className="space-y-3 rounded-2xl border border-md-border bg-md-surface p-4">
+                <div className="text-[11px] uppercase tracking-[0.12em] text-md-text-muted">Group</div>
+                <div className="text-sm text-md-text-muted">
+                  You can add up to <span className="text-md-text-primary">{group.maxSize - 1}</span> additional guest
+                  {group.maxSize - 1 === 1 ? '' : 's'}.
+                </div>
+                <div className="space-y-3">
+                  {groupMembers.map((m, idx) => (
+                    <div key={idx} className="grid gap-3 sm:grid-cols-2">
+                      <Input
+                        label={`Guest ${idx + 2} name`}
+                        value={m.name}
+                        onChange={(e) =>
+                          setGroupMembers((prev) => prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)))
+                        }
+                        placeholder="Name"
+                        autoComplete="off"
+                      />
+                      <Input
+                        label="Dietary notes (optional)"
+                        value={m.dietaryNotes}
+                        onChange={(e) =>
+                          setGroupMembers((prev) =>
+                            prev.map((x, i) => (i === idx ? { ...x, dietaryNotes: e.target.value } : x)),
+                          )
+                        }
+                        placeholder="Allergies, preferences…"
+                        autoComplete="off"
+                      />
+                      <div className="sm:col-span-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setGroupMembers((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {groupMembers.length < group.maxSize - 1 ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setGroupMembers((prev) => [...prev, { name: '', dietaryNotes: '' }])}
+                    >
+                      Add guest
+                    </Button>
+                  ) : (
+                    <div className="rounded-2xl border border-md-border bg-md-surface-elevated p-4 text-sm text-md-text-muted">
+                      {group.overflowMessage}
+                      <div className="mt-3">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            document.getElementById('md-requests')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                            window.dispatchEvent(new CustomEvent('md-prefill-request', { detail: { type: 'PLUS_ONE' } }))
+                          }}
+                        >
+                          Request an extra guest
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
             <Input
               label="Plus one name (optional)"
               value={plusOneName}

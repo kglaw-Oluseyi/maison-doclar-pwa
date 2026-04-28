@@ -19,6 +19,8 @@ import { RemindersSection } from '@/components/concierge/RemindersSection'
 import { ChatbotCard } from '@/components/concierge/ChatbotCard'
 import { PollingCard } from '@/components/concierge/PollingCard'
 import { GuestRequestCard } from '@/components/concierge/GuestRequestCard'
+import { DraftEventPage } from '@/components/event/DraftEventPage'
+import { PostEventShell } from '@/components/event/PostEventShell'
 
 type DesignConfig = Record<string, unknown>
 
@@ -95,6 +97,8 @@ export default async function EventPortalPage(props: {
       id: true,
       slug: true,
       name: true,
+      status: true,
+      timezone: true,
       date: true,
       endDate: true,
       location: true,
@@ -108,12 +112,19 @@ export default async function EventPortalPage(props: {
       whatsappNumber: true,
       designConfig: true,
       contentConfig: true,
+      featureFlags: true,
+      postEventConfig: true,
       pwaConfig: { select: { installHeadline: true, installBody: true } },
     },
   })
 
   if (!event) notFound()
   if (!token) return <AccessDenied />
+
+  // Block DRAFT events from guest access
+  if (event.status === 'DRAFT') {
+    return <DraftEventPage />
+  }
 
   const guest = await prisma.guest.findFirst({
     where: { accessToken: token, eventId: event.id },
@@ -125,6 +136,9 @@ export default async function EventPortalPage(props: {
       tableNumber: true,
       dietaryNotes: true,
       tags: true,
+      isPa: true,
+      managedGuestId: true,
+      groupId: true,
       accessCard: {
         select: {
           qrToken: true,
@@ -137,10 +151,47 @@ export default async function EventPortalPage(props: {
 
   if (!guest) return <AccessDenied />
 
+  const flags = (event.featureFlags ?? {}) as Record<string, unknown>
+  const isPostEvent =
+    (event.status === 'CONCLUDED' || event.status === 'ARCHIVED') && flags.postEventEnabled === true
+  if (isPostEvent) {
+    return (
+      <PostEventShell
+        event={event as any}
+        guest={{ ...(guest as any), accessToken: token, tableNumber: guest.tableNumber, tags: guest.tags, accessCard: guest.accessCard }}
+      />
+    )
+  }
+
   const itinerary = parseJsonArray<ItineraryBlock>(event.itinerary)
   const contacts = parseJsonArray<Contact>(event.contacts)
   const designConfig = parseJsonObject(event.designConfig) as DesignConfig
   const contentConfig = parseJsonObject(event.contentConfig)
+
+  const managedGuest =
+    guest.isPa && guest.managedGuestId
+      ? await prisma.guest.findUnique({
+          where: { id: guest.managedGuestId },
+          select: {
+            id: true,
+            name: true,
+            rsvpStatus: true,
+            rsvpDetails: true,
+            tableNumber: true,
+            dietaryNotes: true,
+            tags: true,
+            accessCard: {
+              select: {
+                qrToken: true,
+                releasedAt: true,
+                invalidatedAt: true,
+              },
+            },
+          },
+        })
+      : null
+
+  const portalGuest = guest.isPa && managedGuest ? managedGuest : guest
 
   const chatbotUrl = typeof contentConfig.chatbotUrl === 'string' ? contentConfig.chatbotUrl : undefined
   const chatbotTitle = typeof contentConfig.chatbotTitle === 'string' ? contentConfig.chatbotTitle : undefined
@@ -153,15 +204,31 @@ export default async function EventPortalPage(props: {
 
   return (
     <EventShell>
+      {guest.isPa && managedGuest ? (
+        <div
+          style={{
+            background: 'var(--md-surface-elevated)',
+            borderBottom: '1px solid var(--md-border)',
+            padding: '12px 24px',
+            fontSize: '0.8rem',
+            color: 'var(--md-text-muted)',
+            textAlign: 'center',
+            letterSpacing: '0.05em',
+          }}
+        >
+          Managing attendance for{' '}
+          <span style={{ color: 'var(--md-text-primary)' }}>{managedGuest.name}</span>
+        </div>
+      ) : null}
       <EventHero
         eventName={event.name}
         eventDateISO={event.date.toISOString()}
         locationName={event.location}
-        guestName={guest.name}
-        guestTags={guest.tags}
+        guestName={portalGuest.name}
+        guestTags={portalGuest.tags}
       />
 
-      <RSVPCard slug={slug} token={token} rsvpOpen={event.rsvpOpen} initialStatus={guest.rsvpStatus} />
+      <RSVPCard slug={slug} token={token} rsvpOpen={event.rsvpOpen} initialStatus={portalGuest.rsvpStatus} />
 
       <EventDetailsCard description={event.description} dressCode={event.dressCode} />
 
@@ -173,15 +240,18 @@ export default async function EventPortalPage(props: {
 
       {itinerary.length ? <ItineraryCard items={itinerary} /> : null}
 
-      {guest.accessCard && guest.accessCard.invalidatedAt === null ? (
+      {portalGuest.accessCard && portalGuest.accessCard.invalidatedAt === null ? (
         <AccessPassCard
-          guestName={guest.name}
+          guestName={portalGuest.name}
           eventName={event.name}
           eventDate={event.date}
-          tableNumber={guest.tableNumber}
-          tags={guest.tags}
-          qrToken={guest.accessCard.qrToken}
-          releasedAt={guest.accessCard.releasedAt}
+          timezone={typeof (event as any).timezone === 'string' ? ((event as any).timezone as string) : undefined}
+          walletPassEnabled={flags.walletPassEnabled === true}
+          accessToken={token}
+          tableNumber={portalGuest.tableNumber}
+          tags={portalGuest.tags}
+          qrToken={portalGuest.accessCard.qrToken}
+          releasedAt={portalGuest.accessCard.releasedAt}
         />
       ) : null}
 
@@ -189,7 +259,7 @@ export default async function EventPortalPage(props: {
         <ContactsCard
           contacts={contacts}
           whatsappNumber={event.whatsappNumber}
-          guestName={guest.name}
+          guestName={portalGuest.name}
           eventName={event.name}
         />
       ) : null}

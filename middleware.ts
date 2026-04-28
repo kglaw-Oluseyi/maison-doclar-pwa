@@ -14,6 +14,17 @@ function isPreviewBypassAllowed(request: NextRequest): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  if (pathname.startsWith('/events/') && !pathname.includes('/api/')) {
+    const token = request.nextUrl.searchParams.get('token')
+    if (token) {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/tracking/portal-visit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      }).catch(() => {})
+    }
+  }
+
   if (pathname.startsWith('/host/')) {
     const parts = pathname.split('/')
     const slug = parts[2]

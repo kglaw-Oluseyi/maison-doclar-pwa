@@ -27,6 +27,7 @@ export default async function HostDashboardPage(props: { params: Promise<{ slug:
       name: true,
       date: true,
       endDate: true,
+      timezone: true,
       location: true,
       hostUsers: { select: { name: true, role: true, viewConfig: true }, take: 1, orderBy: { createdAt: 'asc' } },
     },
@@ -122,6 +123,7 @@ export default async function HostDashboardPage(props: { params: Promise<{ slug:
         <EventSummaryCard
           eventName={event.name}
           eventDate={event.date}
+          timezone={event.timezone}
           venue={event.location}
           daysUntilEvent={daysUntilEvent}
           eventMode={eventMode}

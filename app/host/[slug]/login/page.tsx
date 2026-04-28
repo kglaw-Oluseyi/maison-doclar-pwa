@@ -14,7 +14,21 @@ export default async function HostLoginPage(props: { params: Promise<{ slug: str
     <div className="min-h-[100svh] bg-md-background text-md-text-primary">
       <div className="mx-auto flex min-h-[100svh] max-w-[640px] flex-col justify-center px-6 py-12">
         <div className="text-center">
-          <div className="font-[family-name:var(--md-font-heading)] text-4xl font-light text-md-accent">Maison Doclar</div>
+          <a
+            href="https://maisondoclar.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontFamily: 'var(--md-font-heading)',
+              fontSize: '0.875rem',
+              letterSpacing: '0.3em',
+              textTransform: 'uppercase',
+              color: 'var(--md-accent)',
+              textDecoration: 'none',
+            }}
+          >
+            Maison Doclar
+          </a>
           <div className="mx-auto mt-5 h-px w-10 bg-md-accent" />
           <div className="mt-5 font-[family-name:var(--md-font-heading)] text-2xl font-light">{event.name}</div>
           <div className="mt-2 text-[11px] uppercase tracking-[0.22em] text-md-text-muted">Host Access</div>

@@ -21,10 +21,12 @@ export function HostArrivalFeed({
   slug,
   initialArrivals,
   showVipAlerts,
+  disableAutoRefresh,
 }: {
   slug: string
   initialArrivals: Arrival[]
   showVipAlerts: boolean
+  disableAutoRefresh?: boolean
 }) {
   const [arrivals, setArrivals] = React.useState<Arrival[]>(initialArrivals)
   const prefersReducedMotion = React.useMemo(
@@ -33,6 +35,7 @@ export function HostArrivalFeed({
   )
 
   React.useEffect(() => {
+    if (disableAutoRefresh) return
     let mounted = true
     async function load() {
       const res = await fetch(`/api/host/${encodeURIComponent(slug)}/arrivals`, { cache: 'no-store' })
@@ -47,7 +50,7 @@ export function HostArrivalFeed({
       mounted = false
       window.clearInterval(id)
     }
-  }, [slug])
+  }, [slug, disableAutoRefresh])
 
   return (
     <Card title="Arrivals" noPadding>

@@ -88,7 +88,7 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
   </style>
 </head>
 <body>
-  <div class="wordmark">Maison Doclar</div>
+  <a class="wordmark" href="https://maisondoclar.com" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Maison Doclar</a>
   <div class="rule"></div>
   <div class="title">${eventName}</div>
   <p class="message">You are currently offline. Your saved event details are available once you reopen the app.</p>

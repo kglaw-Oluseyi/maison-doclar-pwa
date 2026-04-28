@@ -29,7 +29,21 @@ export function EventShell({ children }: EventShellProps) {
     <div className="min-h-[100svh] bg-md-background text-md-text-primary">
       <header className="mx-auto max-w-[640px] px-6 pt-10">
         <div className="font-[family-name:var(--md-font-heading)] text-xs uppercase tracking-[0.22em] text-md-accent">
-          Maison Doclar
+          <a
+            href="https://maisondoclar.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontFamily: 'var(--md-font-heading)',
+              fontSize: '0.875rem',
+              letterSpacing: '0.3em',
+              textTransform: 'uppercase',
+              color: 'var(--md-accent)',
+              textDecoration: 'none',
+            }}
+          >
+            Maison Doclar
+          </a>
         </div>
       </header>
       <main className="mx-auto max-w-[640px] px-6 pb-16 pt-10">

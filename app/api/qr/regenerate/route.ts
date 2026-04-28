@@ -4,6 +4,7 @@ import { apiError } from '@/lib/api'
 import { requireDashboardSession } from '@/lib/dashboard-auth'
 import { prisma } from '@/lib/prisma'
 import { generateQrToken } from '@/lib/qr'
+import { logCommunication } from '@/lib/communication-log'
 
 export async function POST(request: NextRequest) {
   await requireDashboardSession(request)
@@ -77,6 +78,19 @@ export async function POST(request: NextRequest) {
 
     return card
   })
+
+  try {
+    void logCommunication({
+      guestId: result.guestId,
+      eventId: result.eventId,
+      type: 'QR_REGENERATED',
+      channel: typeof performedBy === 'string' ? 'DASHBOARD' : undefined,
+      summary: 'QR token regenerated',
+      metadata: { performedBy: typeof performedBy === 'string' ? performedBy : null },
+    })
+  } catch {
+    // ignore
+  }
 
   return NextResponse.json({ ok: true, card: { ...result, generatedAt: result.generatedAt.toISOString(), regeneratedAt: result.regeneratedAt?.toISOString() ?? null, invalidatedAt: result.invalidatedAt?.toISOString() ?? null, releasedAt: result.releasedAt?.toISOString() ?? null } })
 }
