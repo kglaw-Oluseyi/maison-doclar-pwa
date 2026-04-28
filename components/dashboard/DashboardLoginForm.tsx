@@ -1,12 +1,9 @@
+'use client'
+
 import * as React from 'react'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
+import { useFormState } from 'react-dom'
 
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
-
-import { generateDashboardSessionToken } from '@/lib/auth'
-import { DashboardLoginForm } from '@/components/dashboard/DashboardLoginForm'
 
 type FormState = { error: string | null }
 
@@ -44,10 +41,7 @@ function PasswordField() {
   const [open, setOpen] = React.useState(false)
   return (
     <div className="w-full">
-      <label
-        htmlFor="password"
-        className="mb-2 block text-[11px] uppercase tracking-[0.12em] text-md-text-muted"
-      >
+      <label htmlFor="password" className="mb-2 block text-[11px] uppercase tracking-[0.12em] text-md-text-muted">
         Password
       </label>
       <div className="relative">
@@ -79,78 +73,24 @@ function PasswordField() {
   )
 }
 
-async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  'use server'
-
-  const password = process.env.DASHBOARD_PASSWORD
-  const secret = process.env.SESSION_SECRET
-  if (!password || !secret) {
-    return {
-      error: 'Server misconfigured: missing DASHBOARD_PASSWORD and/or SESSION_SECRET.',
-    }
-  }
-
-  const provided = formData.get('password')
-  if (typeof provided !== 'string' || provided.length === 0) {
-    return { error: 'Please enter your password.' }
-  }
-
-  if (provided !== password) {
-    return { error: 'Incorrect password.' }
-  }
-
-  const tokenResult = await generateDashboardSessionToken()
-  if (!tokenResult.ok) {
-    return { error: 'Server misconfigured: could not generate session token.' }
-  }
-
-  const cookieStore = await cookies()
-  cookieStore.set('md-dashboard-session', tokenResult.token, {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 2,
-  })
-
-  redirect('/dashboard')
-}
-
-export default async function DashboardLoginPage() {
-  const missing = [
-    !process.env.DASHBOARD_PASSWORD ? 'DASHBOARD_PASSWORD' : null,
-    !process.env.SESSION_SECRET ? 'SESSION_SECRET' : null,
-  ].filter(Boolean) as string[]
+export function DashboardLoginForm(props: {
+  action: (prev: FormState, formData: FormData) => Promise<FormState>
+}) {
+  const [state, formAction] = useFormState(props.action, { error: null })
 
   return (
-    <div className="min-h-[100svh] bg-md-background text-md-text-primary">
-      <div className="mx-auto flex min-h-[100svh] max-w-[480px] flex-col justify-center px-6 py-12">
-        <div className="mb-10 text-center">
-          <div className="font-[family-name:var(--md-font-heading)] text-3xl font-light text-md-accent">
-            Maison Doclar OS
-          </div>
-          <div className="mt-2 text-sm text-md-text-muted">Dashboard access</div>
+    <form action={formAction} className="space-y-5">
+      <PasswordField />
+      {state.error ? (
+        <div className="inline-flex items-center gap-2 text-sm text-md-error">
+          <WarningIcon className="text-md-error" />
+          <span>{state.error}</span>
         </div>
-
-        {missing.length ? (
-          <div className="mb-6 rounded-2xl border border-md-border bg-md-surface p-5 text-sm">
-            <div className="font-[family-name:var(--md-font-heading)] text-lg font-light text-md-text-primary">
-              Configuration required
-            </div>
-            <div className="mt-2 text-md-text-muted">
-              Missing environment variables: <span className="text-md-accent">{missing.join(', ')}</span>
-            </div>
-            <div className="mt-2 text-md-text-muted">
-              Ensure they are set in Vercel (Production) or in `.env.local` (local dev).
-            </div>
-          </div>
-        ) : null}
-
-        <Card title="Sign in">
-          <DashboardLoginForm action={loginAction} />
-        </Card>
-      </div>
-    </div>
+      ) : null}
+      <Button type="submit" variant="primary" size="lg" className="w-full">
+        Sign in
+      </Button>
+    </form>
   )
 }
 

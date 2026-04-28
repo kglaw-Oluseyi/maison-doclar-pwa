@@ -1,6 +1,8 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
+import { Prisma } from '@prisma/client'
+
 import { apiError } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
 
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     return apiError('RSVP is closed for this event', 'RSVP_CLOSED', 409)
   }
 
-  const detailsRecord: Record<string, unknown> = {}
+  const detailsRecord: Prisma.JsonObject = {}
   if (body.details && isRecord(body.details)) {
     const plusOneName = asOptionalString(body.details.plusOneName)
     const dietaryRequirements = asOptionalString(body.details.dietaryRequirements)

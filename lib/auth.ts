@@ -4,7 +4,7 @@ function bytesToBase64(bytes: Uint8Array): string {
   // Edge/runtime-safe base64 encoding (no Node Buffer required).
   let binary = ''
   for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i])
+    binary += String.fromCharCode(bytes[i] ?? 0)
   }
   return btoa(binary)
 }
@@ -34,7 +34,7 @@ function fromBase64Url(input: string): Uint8Array | null {
 function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false
   let diff = 0
-  for (let i = 0; i < a.length; i += 1) diff |= a[i] ^ b[i]
+  for (let i = 0; i < a.length; i += 1) diff |= (a[i] ?? 0) ^ (b[i] ?? 0)
   return diff === 0
 }
 
@@ -89,7 +89,9 @@ export async function verifyDashboardSessionToken(
 
   const parts = token.split('.')
   if (parts.length !== 2) return false
-  const [bucket, providedSigB64Url] = parts
+  const bucket = parts[0]
+  const providedSigB64Url = parts[1]
+  if (!bucket || !providedSigB64Url) return false
 
   const today = utcDayBucket(now)
   const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
