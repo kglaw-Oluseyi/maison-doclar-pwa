@@ -14,6 +14,11 @@ import { ContactsCard, type Contact } from '@/components/event/ContactsCard'
 import { SaveToCalendarButton } from '@/components/event/SaveToCalendarButton'
 import { Card } from '@/components/ui/Card'
 import { PwaOrchestrator } from '@/components/pwa/PwaOrchestrator'
+import { AccessPassCard } from '@/components/qr/AccessPassCard'
+import { RemindersSection } from '@/components/concierge/RemindersSection'
+import { ChatbotCard } from '@/components/concierge/ChatbotCard'
+import { PollingCard } from '@/components/concierge/PollingCard'
+import { GuestRequestCard } from '@/components/concierge/GuestRequestCard'
 
 type DesignConfig = Record<string, unknown>
 
@@ -102,6 +107,7 @@ export default async function EventPortalPage(props: {
       contacts: true,
       whatsappNumber: true,
       designConfig: true,
+      contentConfig: true,
       pwaConfig: { select: { installHeadline: true, installBody: true } },
     },
   })
@@ -119,6 +125,13 @@ export default async function EventPortalPage(props: {
       tableNumber: true,
       dietaryNotes: true,
       tags: true,
+      accessCard: {
+        select: {
+          qrToken: true,
+          releasedAt: true,
+          invalidatedAt: true,
+        },
+      },
     },
   })
 
@@ -127,6 +140,16 @@ export default async function EventPortalPage(props: {
   const itinerary = parseJsonArray<ItineraryBlock>(event.itinerary)
   const contacts = parseJsonArray<Contact>(event.contacts)
   const designConfig = parseJsonObject(event.designConfig) as DesignConfig
+  const contentConfig = parseJsonObject(event.contentConfig)
+
+  const chatbotUrl = typeof contentConfig.chatbotUrl === 'string' ? contentConfig.chatbotUrl : undefined
+  const chatbotTitle = typeof contentConfig.chatbotTitle === 'string' ? contentConfig.chatbotTitle : undefined
+  const pollingUrl = typeof contentConfig.pollingUrl === 'string' ? contentConfig.pollingUrl : undefined
+  const pollingTitle = typeof contentConfig.pollingTitle === 'string' ? contentConfig.pollingTitle : undefined
+  const requestFormEnabled = contentConfig.requestFormEnabled === true
+  const requestFormTypes = Array.isArray(contentConfig.requestFormTypes)
+    ? contentConfig.requestFormTypes.filter((t) => typeof t === 'string')
+    : []
 
   return (
     <EventShell>
@@ -150,6 +173,18 @@ export default async function EventPortalPage(props: {
 
       {itinerary.length ? <ItineraryCard items={itinerary} /> : null}
 
+      {guest.accessCard && guest.accessCard.invalidatedAt === null ? (
+        <AccessPassCard
+          guestName={guest.name}
+          eventName={event.name}
+          eventDate={event.date}
+          tableNumber={guest.tableNumber}
+          tags={guest.tags}
+          qrToken={guest.accessCard.qrToken}
+          releasedAt={guest.accessCard.releasedAt}
+        />
+      ) : null}
+
       {contacts.length ? (
         <ContactsCard
           contacts={contacts}
@@ -158,6 +193,28 @@ export default async function EventPortalPage(props: {
           eventName={event.name}
         />
       ) : null}
+
+      <RemindersSection token={token} eventSlug={slug} />
+
+      {chatbotUrl ? (
+        <ChatbotCard
+          chatbotUrl={chatbotUrl}
+          chatbotTitle={chatbotTitle ?? 'Concierge'}
+          guestToken={token}
+          eventSlug={slug}
+        />
+      ) : null}
+
+      {pollingUrl ? (
+        <PollingCard
+          pollingUrl={pollingUrl}
+          pollingTitle={pollingTitle ?? 'Live Polling'}
+          guestToken={token}
+          eventSlug={slug}
+        />
+      ) : null}
+
+      <GuestRequestCard enabled={requestFormEnabled} enabledTypes={requestFormTypes} token={token} />
 
       <PwaOrchestrator
         slug={slug}

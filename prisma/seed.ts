@@ -1,5 +1,7 @@
 import { PrismaClient, RSVPStatus } from '@prisma/client'
 
+import { hashPassword } from '../lib/host-auth'
+
 const prisma = new PrismaClient()
 
 type DesignConfig = {
@@ -69,6 +71,14 @@ async function main() {
         'An evening of ceremony, dining, and music in celebration of Maison Doclar. Please arrive promptly to enjoy the welcome reception.',
       rsvpOpen: true,
       designConfig,
+      contentConfig: {
+        chatbotUrl: 'https://example.com/concierge-chat',
+        chatbotTitle: 'Concierge',
+        pollingUrl: 'https://example.com/live-polling',
+        pollingTitle: 'Live Polling',
+        requestFormEnabled: true,
+        requestFormTypes: ['DIETARY', 'TRANSPORT', 'ACCESSIBILITY', 'PLUS_ONE', 'GENERAL'],
+      },
       itinerary,
       contacts,
       whatsappNumber: '33798765432',
@@ -86,6 +96,14 @@ async function main() {
         'An evening of ceremony, dining, and music in celebration of Maison Doclar. Please arrive promptly to enjoy the welcome reception.',
       rsvpOpen: true,
       designConfig,
+      contentConfig: {
+        chatbotUrl: 'https://example.com/concierge-chat',
+        chatbotTitle: 'Concierge',
+        pollingUrl: 'https://example.com/live-polling',
+        pollingTitle: 'Live Polling',
+        requestFormEnabled: true,
+        requestFormTypes: ['DIETARY', 'TRANSPORT', 'ACCESSIBILITY', 'PLUS_ONE', 'GENERAL'],
+      },
       itinerary,
       contacts,
       whatsappNumber: '33798765432',
@@ -110,6 +128,7 @@ async function main() {
   const guests = [
     {
       accessToken: '11111111-1111-1111-1111-111111111111',
+      qrToken: 'qr-11111111-1111-1111-1111-111111111111',
       name: 'Sofia Beaumont',
       email: 'sofia.beaumont@example.com',
       rsvpStatus: RSVPStatus.ACCEPTED,
@@ -121,6 +140,7 @@ async function main() {
     },
     {
       accessToken: '22222222-2222-2222-2222-222222222222',
+      qrToken: 'qr-22222222-2222-2222-2222-222222222222',
       name: 'Noah Lambert',
       email: 'noah.lambert@example.com',
       rsvpStatus: RSVPStatus.ACCEPTED,
@@ -132,6 +152,7 @@ async function main() {
     },
     {
       accessToken: '33333333-3333-3333-3333-333333333333',
+      qrToken: 'qr-33333333-3333-3333-3333-333333333333',
       name: 'Camille Durand',
       email: 'camille.durand@example.com',
       rsvpStatus: RSVPStatus.DECLINED,
@@ -143,6 +164,7 @@ async function main() {
     },
     {
       accessToken: '44444444-4444-4444-4444-444444444444',
+      qrToken: 'qr-44444444-4444-4444-4444-444444444444',
       name: 'Luca Moretti',
       email: 'luca.moretti@example.com',
       rsvpStatus: RSVPStatus.PENDING,
@@ -154,6 +176,7 @@ async function main() {
     },
     {
       accessToken: '55555555-5555-5555-5555-555555555555',
+      qrToken: 'qr-55555555-5555-5555-5555-555555555555',
       name: 'Aisha Khan',
       email: 'aisha.khan@example.com',
       rsvpStatus: RSVPStatus.PENDING,
@@ -167,7 +190,7 @@ async function main() {
 
   await Promise.all(
     guests.map(async (g) => {
-      await prisma.guest.upsert({
+      const guest = await prisma.guest.upsert({
         where: { accessToken: g.accessToken },
         update: {
           eventId: event.id,
@@ -193,8 +216,142 @@ async function main() {
           specialNotes: g.specialNotes,
         },
       })
+
+      await prisma.accessCard.upsert({
+        where: { guestId: guest.id },
+        update: {
+          eventId: event.id,
+          qrToken: g.qrToken,
+          releasedAt: new Date(),
+          invalidatedAt: null,
+        },
+        create: {
+          guestId: guest.id,
+          eventId: event.id,
+          qrToken: g.qrToken,
+          releasedAt: new Date(),
+        },
+      })
     }),
   )
+
+  const firstGuest = await prisma.guest.findFirst({ where: { eventId: event.id }, orderBy: { createdAt: 'asc' } })
+  if (!firstGuest) return
+
+  const dressCodeScheduledAt = new Date(event.date.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const scheduleScheduledAt = new Date(event.date.getTime() - 24 * 60 * 60 * 1000)
+
+  const dressCodeReminder = await prisma.reminder.upsert({
+    where: {
+      id: '00000000-0000-0000-0000-000000000001',
+    },
+    update: {
+      eventId: event.id,
+      type: 'DRESS_CODE',
+      title: 'Dress Code',
+      content: 'Black tie — evening elegance. Consider a light wrap for the garden reception.',
+      scheduledAt: dressCodeScheduledAt,
+      channel: 'IN_APP',
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000001',
+      eventId: event.id,
+      type: 'DRESS_CODE',
+      title: 'Dress Code',
+      content: 'Black tie — evening elegance. Consider a light wrap for the garden reception.',
+      scheduledAt: dressCodeScheduledAt,
+      channel: 'IN_APP',
+    },
+  })
+
+  await prisma.reminder.upsert({
+    where: {
+      id: '00000000-0000-0000-0000-000000000002',
+    },
+    update: {
+      eventId: event.id,
+      type: 'SCHEDULE',
+      title: 'Tomorrow',
+      content: 'Arrival begins at 18:30. Please arrive promptly to enjoy the welcome reception.',
+      scheduledAt: scheduleScheduledAt,
+      channel: 'IN_APP',
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000002',
+      eventId: event.id,
+      type: 'SCHEDULE',
+      title: 'Tomorrow',
+      content: 'Arrival begins at 18:30. Please arrive promptly to enjoy the welcome reception.',
+      scheduledAt: scheduleScheduledAt,
+      channel: 'IN_APP',
+    },
+  })
+
+  await prisma.guestRequest.upsert({
+    where: {
+      id: '00000000-0000-0000-0000-000000000003',
+    },
+    update: {
+      guestId: firstGuest.id,
+      eventId: event.id,
+      type: 'DIETARY',
+      message: 'I have a severe nut allergy not previously noted.',
+      status: 'PENDING',
+      operatorNote: null,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000003',
+      guestId: firstGuest.id,
+      eventId: event.id,
+      type: 'DIETARY',
+      message: 'I have a severe nut allergy not previously noted.',
+      status: 'PENDING',
+    },
+  })
+
+  const hostPasswordHash = await hashPassword('maison-host-2026')
+  await prisma.hostUser.upsert({
+    where: { email: 'host@maisondoclar.com' },
+    update: {
+      eventId: event.id,
+      name: 'Isabelle Fontaine',
+      passwordHash: hostPasswordHash,
+      role: 'HOST',
+      viewConfig: {
+        showStatsBar: true,
+        showArrivalFeed: true,
+        showGuestList: true,
+        showDietaryAccessibilitySummary: true,
+        showOutstandingRequests: true,
+        showAwaitingResponseList: true,
+        showExportButton: true,
+        showRsvpDetails: true,
+        showVipAlerts: true,
+        showPostEventSummary: true,
+        eventDayModeAutoSwitch: true,
+      },
+    },
+    create: {
+      eventId: event.id,
+      email: 'host@maisondoclar.com',
+      name: 'Isabelle Fontaine',
+      passwordHash: hostPasswordHash,
+      role: 'HOST',
+      viewConfig: {
+        showStatsBar: true,
+        showArrivalFeed: true,
+        showGuestList: true,
+        showDietaryAccessibilitySummary: true,
+        showOutstandingRequests: true,
+        showAwaitingResponseList: true,
+        showExportButton: true,
+        showRsvpDetails: true,
+        showVipAlerts: true,
+        showPostEventSummary: true,
+        eventDayModeAutoSwitch: true,
+      },
+    },
+  })
 }
 
 main()

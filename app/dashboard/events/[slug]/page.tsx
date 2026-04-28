@@ -7,6 +7,11 @@ import { GuestTable, type GuestRow } from '@/components/dashboard/GuestTable'
 import { ExportButton } from '@/components/dashboard/ExportButton'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { Card } from '@/components/ui/Card'
+import { CheckInStats } from '@/components/qr/CheckInStats'
+import { Button } from '@/components/ui/Button'
+import { RequestsTable } from '@/components/dashboard/RequestsTable'
+import { RemindersManager } from '@/components/dashboard/RemindersManager'
+import { HostAccessCard } from '@/components/dashboard/HostAccessCard'
 
 type RSVPStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED'
 
@@ -57,6 +62,11 @@ export default async function DashboardEventPage(props: { params: Promise<{ slug
 
   const totals = countByStatus(guests.map((g) => g.rsvpStatus))
 
+  const arrived = await prisma.checkInLog.count({ where: { eventId: event.id } })
+  const declined = guests.filter((g) => g.rsvpStatus === 'DECLINED').length
+  const notArrived = Math.max(guests.length - arrived - declined, 0)
+  const checkInStats = { total: guests.length, arrived, notArrived, declined }
+
   return (
     <div>
       <DashboardHeader eventName={event.name} />
@@ -67,8 +77,17 @@ export default async function DashboardEventPage(props: { params: Promise<{ slug
               <div className="text-[11px] uppercase tracking-[0.22em] text-md-text-muted">Event</div>
               <div className="mt-2 font-[family-name:var(--md-font-heading)] text-4xl font-light">{event.name}</div>
             </div>
-            <ExportButton slug={event.slug} />
+            <div className="flex items-center gap-3">
+              <a href={`/checkin/${event.slug}`}>
+                <Button type="button" variant="primary">
+                  Open Check-in Scanner
+                </Button>
+              </a>
+              <ExportButton slug={event.slug} />
+            </div>
           </div>
+
+          <CheckInStats stats={checkInStats} />
 
           <RSVPStats
             total={guests.length}
@@ -82,6 +101,22 @@ export default async function DashboardEventPage(props: { params: Promise<{ slug
               <GuestTable guests={rows} />
             </div>
           </Card>
+
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-md-text-muted">Guest Requests</div>
+            <div className="mt-4">
+              <RequestsTable eventSlug={event.slug} />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-md-text-muted">Reminders</div>
+            <div className="mt-4">
+              <RemindersManager eventSlug={event.slug} />
+            </div>
+          </div>
+
+          <HostAccessCard slug={event.slug} />
         </div>
       </main>
     </div>

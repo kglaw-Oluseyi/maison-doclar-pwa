@@ -20,6 +20,7 @@ model Event {
   description    String?
   rsvpOpen       Boolean   @default(true)
   designConfig   Json      @default("{}")
+  contentConfig  Json      @default("{}")
   itinerary      Json      @default("[]")
   contacts       Json      @default("[]")
   whatsappNumber String?
@@ -28,6 +29,12 @@ model Event {
   guests         Guest[]
   pwaConfig       PwaConfig?
   pwaInstallEvents PwaInstallEvent[]
+  accessCards   AccessCard[]
+  checkInLogs   CheckInLog[]
+  qrAuditLogs   QrAuditLog[]
+  reminders     Reminder[]
+  guestRequests GuestRequest[]
+  hostUsers     HostUser[]
 }
 
 model Guest {
@@ -45,12 +52,97 @@ model Guest {
   specialNotes String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  accessCard    AccessCard?
+  checkIn       CheckInLog?
+  reminders     ReminderReceipt[]
+  guestRequests GuestRequest[]
 }
 
 enum RSVPStatus {
   PENDING
   ACCEPTED
   DECLINED
+}
+
+model Reminder {
+  id          String          @id @default(uuid())
+  eventId     String
+  event       Event           @relation(fields: [eventId], references: [id])
+  type        ReminderType
+  title       String
+  content     String
+  scheduledAt DateTime
+  sentAt      DateTime?
+  channel     ReminderChannel @default(IN_APP)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  receipts    ReminderReceipt[]
+}
+
+model ReminderReceipt {
+  id         String   @id @default(uuid())
+  reminderId String
+  reminder   Reminder @relation(fields: [reminderId], references: [id])
+  guestId    String
+  guest      Guest    @relation(fields: [guestId], references: [id])
+  seenAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@unique([reminderId, guestId])
+}
+
+model GuestRequest {
+  id           String             @id @default(uuid())
+  guestId      String
+  guest        Guest              @relation(fields: [guestId], references: [id])
+  eventId      String
+  event        Event              @relation(fields: [eventId], references: [id])
+  type         GuestRequestType
+  message      String
+  status       GuestRequestStatus @default(PENDING)
+  operatorNote String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+enum ReminderType {
+  GENERAL
+  SCHEDULE
+  DRESS_CODE
+  TRANSPORT
+  CUSTOM
+}
+
+enum ReminderChannel {
+  IN_APP
+  WHATSAPP
+}
+
+enum GuestRequestType {
+  DIETARY
+  TRANSPORT
+  ACCESSIBILITY
+  PLUS_ONE
+  GENERAL
+}
+
+enum GuestRequestStatus {
+  PENDING
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+model HostUser {
+  id           String   @id @default(uuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id])
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("HOST")
+  viewConfig   Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model PwaConfig {
@@ -72,5 +164,49 @@ model PwaInstallEvent {
   eventType String
   userAgent String?
   createdAt DateTime @default(now())
+}
+
+model AccessCard {
+  id            String      @id @default(uuid())
+  guestId       String      @unique
+  guest         Guest       @relation(fields: [guestId], references: [id])
+  eventId       String
+  event         Event       @relation(fields: [eventId], references: [id])
+  qrToken       String      @unique @default(uuid())
+  generatedAt   DateTime    @default(now())
+  regeneratedAt DateTime?
+  invalidatedAt DateTime?
+  releasedAt    DateTime?
+  checkIn       CheckInLog?
+}
+
+model CheckInLog {
+  id           String        @id @default(uuid())
+  guestId      String        @unique
+  guest        Guest         @relation(fields: [guestId], references: [id])
+  accessCardId String        @unique
+  accessCard   AccessCard    @relation(fields: [accessCardId], references: [id])
+  eventId      String
+  event        Event         @relation(fields: [eventId], references: [id])
+  scannedAt    DateTime      @default(now())
+  scannedBy    String?
+  method       CheckInMethod @default(QR_SCAN)
+}
+
+model QrAuditLog {
+  id          String   @id @default(uuid())
+  guestId     String
+  eventId     String
+  action      String
+  performedBy String?
+  oldQrToken  String?
+  newQrToken  String?
+  createdAt   DateTime @default(now())
+  event       Event    @relation(fields: [eventId], references: [id])
+}
+
+enum CheckInMethod {
+  QR_SCAN
+  MANUAL
 }
 

@@ -14,6 +14,34 @@ function isPreviewBypassAllowed(request: NextRequest): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  if (pathname.startsWith('/host/')) {
+    const parts = pathname.split('/')
+    const slug = parts[2]
+    const isLogin = pathname.endsWith('/login') || pathname.endsWith('/login/')
+    const isAuthApi = pathname.includes('/auth/')
+    if (isLogin || isAuthApi) return NextResponse.next()
+
+    const session = request.cookies.get('md-host-session')?.value
+    if (!session || !slug) {
+      return NextResponse.redirect(new URL(`/host/${slug ?? ''}/login`, request.url))
+    }
+
+    // Edge runtime cannot query Prisma; validate by calling host stats endpoint.
+    const url = new URL(`/api/host/${slug}/stats`, request.url)
+    const res = await fetch(url, {
+      headers: { cookie: `md-host-session=${session}` },
+      cache: 'no-store',
+    }).catch(() => null)
+
+    if (!res || !res.ok) {
+      const response = NextResponse.redirect(new URL(`/host/${slug}/login`, request.url))
+      response.cookies.delete('md-host-session')
+      return response
+    }
+
+    return NextResponse.next()
+  }
+
   if (!pathname.startsWith('/dashboard')) return NextResponse.next()
   if (pathname === '/dashboard/login') return NextResponse.next()
 
@@ -43,6 +71,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*', '/host/:path*', '/checkin/:path*'],
 }
 

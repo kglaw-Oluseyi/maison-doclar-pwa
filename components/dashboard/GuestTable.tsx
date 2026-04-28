@@ -5,6 +5,8 @@ import * as React from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 
+import { formatDate } from '@/lib/format'
+
 type RSVPStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED'
 
 export type GuestRow = {
@@ -31,8 +33,7 @@ function statusOrder(status: RSVPStatus): number {
 }
 
 function formatShortDate(iso: string): string {
-  const d = new Date(iso)
-  return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: '2-digit' }).format(d)
+  return formatDate(new Date(iso))
 }
 
 function sortIndicator(active: boolean, direction: SortDirection): string {
