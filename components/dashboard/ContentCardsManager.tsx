@@ -21,6 +21,11 @@ type CardType =
   | 'POLLING'
   | 'GUEST_REQUESTS'
   | 'ACCESS_PASS'
+  | 'guestbook'
+  | 'gift-registry'
+  | 'photo-wall'
+  | 'live-stream'
+  | 'custom-embed'
 
 type Row = {
   id: CardType
@@ -107,10 +112,17 @@ export function ContentCardsManager({
     { id: 'SAVE_TO_CALENDAR', label: 'Save to Calendar', description: 'Show .ics download button' },
     { id: 'WHATSAPP', label: 'WhatsApp Concierge', description: 'Show direct WhatsApp button' },
     { id: 'CHATBOT', label: 'Chatbot', description: 'Embed your chatbot' },
+    { id: 'guestbook', label: 'Guestbook', description: 'Embed a digital guestbook (iframe)' },
+    { id: 'gift-registry', label: 'Gift Registry', description: 'Embed a gift registry (iframe)' },
+    { id: 'photo-wall', label: 'Photo Wall', description: 'Embed a photo sharing wall (iframe)' },
+    { id: 'live-stream', label: 'Live Stream', description: 'Embed a live stream player (iframe)' },
+    { id: 'custom-embed', label: 'Custom Embed', description: 'Embed any external URL (iframe)' },
     { id: 'POLLING', label: 'Live Polling', description: 'Embed your polling app' },
     { id: 'GUEST_REQUESTS', label: 'Guest Requests', description: 'Enable guest request form' },
     { id: 'ACCESS_PASS', label: 'Access Pass', description: 'Show QR access pass card' },
   ]
+
+  const EMBED_CARD_IDS: CardType[] = ['CHATBOT', 'guestbook', 'gift-registry', 'photo-wall', 'live-stream', 'custom-embed']
 
   function defaultEnabled(id: CardType): boolean {
     const enabled = cfg.enabledCards
@@ -119,6 +131,12 @@ export function ContentCardsManager({
     if (id === 'CHATBOT') return typeof cfg.chatbotUrl === 'string' && cfg.chatbotUrl.length > 0
     if (id === 'POLLING') return typeof cfg.pollingUrl === 'string' && cfg.pollingUrl.length > 0
     if (id === 'GUEST_REQUESTS') return cfg.requestFormEnabled === true
+    if (EMBED_CARD_IDS.includes(id)) {
+      const embeds = isRecord(cfg.embedCards) ? (cfg.embedCards as Record<string, unknown>) : {}
+      const entry = isRecord(embeds[id]) ? (embeds[id] as Record<string, unknown>) : {}
+      const url = typeof entry.url === 'string' ? entry.url : ''
+      return url.length > 0
+    }
     return true
   }
 
@@ -135,6 +153,32 @@ export function ContentCardsManager({
 
   const [chatbotUrl, setChatbotUrl] = React.useState(typeof cfg.chatbotUrl === 'string' ? cfg.chatbotUrl : '')
   const [chatbotTitle, setChatbotTitle] = React.useState(typeof cfg.chatbotTitle === 'string' ? cfg.chatbotTitle : 'Concierge')
+  const [chatbotDescription, setChatbotDescription] = React.useState(
+    typeof cfg.chatbotDescription === 'string' ? cfg.chatbotDescription : 'Ask questions and get help in real time.',
+  )
+
+  const initialEmbeds = React.useMemo(() => {
+    const out: Record<string, { url: string; title: string; description: string }> = {}
+    const embeds = isRecord(cfg.embedCards) ? (cfg.embedCards as Record<string, unknown>) : {}
+    for (const meta of all) {
+      if (!EMBED_CARD_IDS.includes(meta.id)) continue
+      const entry = isRecord(embeds[meta.id]) ? (embeds[meta.id] as Record<string, unknown>) : {}
+      const url = typeof entry.url === 'string' ? entry.url : meta.id === 'CHATBOT' ? chatbotUrl : ''
+      const title =
+        typeof entry.title === 'string' && entry.title.trim().length ? entry.title : meta.id === 'CHATBOT' ? chatbotTitle : meta.label
+      const description =
+        typeof entry.description === 'string' && entry.description.trim().length
+          ? entry.description
+          : meta.id === 'CHATBOT'
+            ? chatbotDescription
+            : meta.description
+      out[meta.id] = { url, title, description }
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const [embedCards, setEmbedCards] = React.useState<Record<string, { url: string; title: string; description: string }>>(initialEmbeds)
   const [pollingUrl, setPollingUrl] = React.useState(typeof cfg.pollingUrl === 'string' ? cfg.pollingUrl : '')
   const [pollingTitle, setPollingTitle] = React.useState(typeof cfg.pollingTitle === 'string' ? cfg.pollingTitle : 'Live Polling')
   const [rsvpMode, setRsvpMode] = React.useState<'native' | 'tally'>(cfg.rsvpMode === 'tally' ? 'tally' : 'native')
@@ -168,12 +212,26 @@ export function ContentCardsManager({
     setSaving(true)
     try {
       const enabledCards = order.filter((id) => enabled[id])
+      const nextEmbedCards: Record<string, { url: string; title: string; description: string }> = {}
+      for (const id of EMBED_CARD_IDS) {
+        if (!enabled[id]) continue
+        const entry = embedCards[id]
+        if (!entry) continue
+        const meta = all.find((a) => a.id === id)
+        nextEmbedCards[id] = {
+          url: entry.url.trim(),
+          title: (entry.title || meta?.label || String(id)).trim(),
+          description: entry.description.trim(),
+        }
+      }
       const nextConfig: Record<string, unknown> = {
         enabledCards,
         cardsOrder: order,
         requestFormEnabled: enabled.GUEST_REQUESTS,
         chatbotUrl: enabled.CHATBOT ? chatbotUrl : '',
         chatbotTitle,
+        chatbotDescription,
+        embedCards: nextEmbedCards,
         pollingUrl: enabled.POLLING ? pollingUrl : '',
         pollingTitle,
         rsvpMode,
@@ -211,10 +269,72 @@ export function ContentCardsManager({
                 row={r}
                 onToggle={() => setEnabled((e) => ({ ...e, [r.id]: !e[r.id] }))}
               >
-                {r.id === 'CHATBOT' && r.enabled ? (
+                {EMBED_CARD_IDS.includes(r.id) && r.enabled ? (
                   <div className="grid gap-3 md:grid-cols-2">
-                    <Input label="Chatbot URL" value={chatbotUrl} onChange={(e) => setChatbotUrl(e.target.value)} />
-                    <Input label="Card title" value={chatbotTitle} onChange={(e) => setChatbotTitle(e.target.value)} />
+                    <Input
+                      label={r.id === 'CHATBOT' ? 'Chatbot URL' : 'Iframe URL'}
+                      value={r.id === 'CHATBOT' ? chatbotUrl : (embedCards[r.id]?.url ?? '')}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (r.id === 'CHATBOT') setChatbotUrl(v)
+                        setEmbedCards((m) => ({
+                          ...m,
+                          [r.id]: {
+                            url: v,
+                            title:
+                              (r.id === 'CHATBOT' ? chatbotTitle : m[r.id]?.title ?? all.find((a) => a.id === r.id)?.label ?? '') || '',
+                            description:
+                              (r.id === 'CHATBOT'
+                                ? chatbotDescription
+                                : m[r.id]?.description ?? all.find((a) => a.id === r.id)?.description ?? '') || '',
+                          },
+                        }))
+                      }}
+                    />
+                    <Input
+                      label="Card title"
+                      value={r.id === 'CHATBOT' ? chatbotTitle : (embedCards[r.id]?.title ?? all.find((a) => a.id === r.id)?.label ?? '')}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (r.id === 'CHATBOT') setChatbotTitle(v)
+                        setEmbedCards((m) => ({
+                          ...m,
+                          [r.id]: {
+                            url: r.id === 'CHATBOT' ? chatbotUrl : (m[r.id]?.url ?? ''),
+                            title: v,
+                            description:
+                              (r.id === 'CHATBOT'
+                                ? chatbotDescription
+                                : m[r.id]?.description ?? all.find((a) => a.id === r.id)?.description ?? '') || '',
+                          },
+                        }))
+                      }}
+                    />
+                    <div className="md:col-span-2">
+                      <Input
+                        label="Descriptor text"
+                        value={
+                          r.id === 'CHATBOT'
+                            ? chatbotDescription
+                            : (embedCards[r.id]?.description ?? all.find((a) => a.id === r.id)?.description ?? '')
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (r.id === 'CHATBOT') setChatbotDescription(v)
+                          setEmbedCards((m) => ({
+                            ...m,
+                            [r.id]: {
+                              url: r.id === 'CHATBOT' ? chatbotUrl : (m[r.id]?.url ?? ''),
+                              title:
+                                (r.id === 'CHATBOT'
+                                  ? chatbotTitle
+                                  : m[r.id]?.title ?? all.find((a) => a.id === r.id)?.label ?? '') || '',
+                              description: v,
+                            },
+                          }))
+                        }}
+                      />
+                    </div>
                   </div>
                 ) : null}
                 {r.id === 'POLLING' && r.enabled ? (

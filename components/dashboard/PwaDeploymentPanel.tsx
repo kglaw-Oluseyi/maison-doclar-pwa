@@ -5,7 +5,7 @@ import * as React from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
-type CheckRow = { id: string; label: string; status: 'idle' | 'running' | 'pass' | 'fail'; detail?: string }
+type CheckStatus = 'idle' | 'running' | 'pass' | 'fail'
 
 export function PwaDeploymentPanel({
   slug,
@@ -30,15 +30,26 @@ export function PwaDeploymentPanel({
   const [manifestErr, setManifestErr] = React.useState<string | null>(null)
   const [manifestLoading, setManifestLoading] = React.useState(false)
 
-  const [checks, setChecks] = React.useState<CheckRow[]>([
-    { id: 'name-date', label: 'Event has a name and date', status: 'idle' },
-    { id: 'guest-count', label: 'At least one guest has been added', status: 'idle' },
-    { id: 'logo', label: 'Logo/icon has been uploaded', status: 'idle' },
-    { id: 'manifest', label: 'Manifest returns 200', status: 'idle' },
-    { id: 'sw', label: 'Service worker returns 200', status: 'idle' },
-    { id: 'offline', label: 'Offline page returns 200', status: 'idle' },
-    { id: 'cards', label: 'At least one content card is enabled', status: 'idle' },
-  ])
+  const CHECK_ITEMS = [
+    { key: 'nameAndDate', apiId: 'name-date', label: 'Event has a name and date' },
+    { key: 'guestAdded', apiId: 'guest-count', label: 'At least one guest has been added' },
+    { key: 'logoUploaded', apiId: 'logo', label: 'Logo/icon has been uploaded' },
+    { key: 'manifestOk', apiId: 'manifest', label: 'Manifest returns 200' },
+    { key: 'swOk', apiId: 'sw', label: 'Service worker returns 200' },
+    { key: 'offlineOk', apiId: 'offline', label: 'Offline page returns 200' },
+    { key: 'cardEnabled', apiId: 'cards', label: 'At least one content card is enabled' },
+  ] as const
+
+  const [checks, setChecks] = React.useState<Record<(typeof CHECK_ITEMS)[number]['key'], CheckStatus>>({
+    nameAndDate: 'idle',
+    guestAdded: 'idle',
+    logoUploaded: 'idle',
+    manifestOk: 'idle',
+    swOk: 'idle',
+    offlineOk: 'idle',
+    cardEnabled: 'idle',
+  })
+  const [checkDetails, setCheckDetails] = React.useState<Record<string, string>>({})
 
   const [checking, setChecking] = React.useState(false)
   const [iconsUploading, setIconsUploading] = React.useState(false)
@@ -110,28 +121,56 @@ export function PwaDeploymentPanel({
 
   async function runChecks() {
     setChecking(true)
-    setChecks((prev) => prev.map((c) => ({ ...c, status: 'running', detail: undefined })))
+    setCheckDetails({})
+    setChecks({
+      nameAndDate: 'running',
+      guestAdded: 'running',
+      logoUploaded: 'running',
+      manifestOk: 'running',
+      swOk: 'running',
+      offlineOk: 'running',
+      cardEnabled: 'running',
+    })
     try {
       const res = await fetch(`/api/dashboard/events/${encodeURIComponent(slug)}/pwa/checks`, { method: 'POST', cache: 'no-store' })
       const data = (await res.json().catch(() => null)) as any
       if (!res.ok) throw new Error(data?.error ?? 'Checks failed')
       const results = data.results as Record<string, { ok: boolean; detail: string }>
-      setChecks((prev) =>
-        prev.map((c) => ({
-          ...c,
-          status: results?.[c.id]?.ok ? 'pass' : 'fail',
-          detail: results?.[c.id]?.detail,
-        })),
-      )
+      const next: Record<(typeof CHECK_ITEMS)[number]['key'], CheckStatus> = { ...checks }
+      const details: Record<string, string> = {}
+      for (const item of CHECK_ITEMS) {
+        next[item.key] = results?.[item.apiId]?.ok ? 'pass' : 'fail'
+        details[item.key] = results?.[item.apiId]?.detail ?? ''
+      }
+      setChecks(next)
+      setCheckDetails(details)
     } catch (e: any) {
-      setChecks((prev) => prev.map((c) => ({ ...c, status: 'fail', detail: 'Check run failed' })))
+      setChecks({
+        nameAndDate: 'fail',
+        guestAdded: 'fail',
+        logoUploaded: 'fail',
+        manifestOk: 'fail',
+        swOk: 'fail',
+        offlineOk: 'fail',
+        cardEnabled: 'fail',
+      })
+      setCheckDetails({
+        nameAndDate: 'Check run failed',
+        guestAdded: 'Check run failed',
+        logoUploaded: 'Check run failed',
+        manifestOk: 'Check run failed',
+        swOk: 'Check run failed',
+        offlineOk: 'Check run failed',
+        cardEnabled: 'Check run failed',
+      })
     } finally {
       setChecking(false)
     }
   }
 
-  const allRequiredPass = checks.every((c) => c.status === 'pass')
-  const canPublish = status === 'DRAFT' && allRequiredPass
+  const allRequiredPass = Object.values(checks).every((s) => s === 'pass')
+  const allChecksRun = Object.values(checks).every((s) => s !== 'idle' && s !== 'running')
+  const canPublish = status === 'DRAFT' && allChecksRun && allRequiredPass
 
   async function publish() {
     if (!confirm(`Publish this event now? Public URL: ${window.location.origin}/events/${slug}`)) return
@@ -225,19 +264,23 @@ export function PwaDeploymentPanel({
           </Button>
         </div>
         <div className="rounded-2xl border border-md-border bg-md-surface">
-          {checks.map((c) => (
-            <div key={c.id} className="flex items-start justify-between gap-4 border-b border-md-border px-5 py-4 last:border-b-0">
+          {CHECK_ITEMS.map((c) => {
+            const st = checks[c.key]
+            const detail = checkDetails[c.key] ?? ''
+            return (
+            <div key={c.key} className="flex items-start justify-between gap-4 border-b border-md-border px-5 py-4 last:border-b-0">
               <div className="min-w-0">
                 <div className="text-sm text-md-text-primary">{c.label}</div>
-                {c.detail ? <div className="mt-1 text-xs text-md-text-muted">{c.detail}</div> : null}
+                {detail ? <div className="mt-1 text-xs text-md-text-muted">{detail}</div> : null}
               </div>
               <div className="shrink-0 text-sm">
-                {c.status === 'running' ? <span className="text-md-text-muted">…</span> : null}
-                {c.status === 'pass' ? <span className="text-md-success">✓</span> : null}
-                {c.status === 'fail' ? <span className="text-md-error">✗</span> : null}
+                {st === 'idle' ? <span className="text-md-text-muted">•</span> : null}
+                {st === 'running' ? <span className="text-md-text-muted">…</span> : null}
+                {st === 'pass' ? <span className="text-md-success">✓</span> : null}
+                {st === 'fail' ? <span className="text-md-error">✗</span> : null}
               </div>
             </div>
-          ))}
+          )})}
         </div>
 
         <div className="flex items-center justify-between rounded-2xl border border-md-border bg-md-surface p-5">

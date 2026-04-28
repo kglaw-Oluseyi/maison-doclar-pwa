@@ -18,7 +18,7 @@ type GuestRow = {
   portalVisitCount: number
   dietaryNotes: string | null
   accessibilityNotes: string | null
-  accessCard: { releasedAt: string | null; invalidatedAt: string | null } | null
+  accessCard: { releasedAt: string | null; invalidatedAt: string | null; qrToken?: string | null } | null
 }
 
 function Badge({ status }: { status: GuestRow['rsvpStatus'] }) {
@@ -128,7 +128,8 @@ export function GuestsManager({
   }
 
   async function releasePasses() {
-    if (!confirm(`This will release QR access passes for ${unreleasedCount} guests. They will become visible in the guest portal immediately.`)) return
+    const count = guests.filter((g) => g.accessCard && !g.accessCard.releasedAt).length
+    if (!confirm(`This will release QR access passes for ${count} guests. They will become visible in the guest portal immediately.`)) return
     const res = await fetch('/api/qr/release', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -187,44 +188,49 @@ export function GuestsManager({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={`/dashboard/events/${slug}/guests/import`}
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-md-border bg-md-surface px-4 text-sm text-md-text-primary hover:bg-md-surface-elevated"
-          >
-            Import CSV
-          </a>
-          <Button type="button" variant="secondary" onClick={() => setShowAdd(true)}>
-            Add Guest
-          </Button>
-          {unreleasedCount > 0 ? (
-            <Button type="button" variant="primary" onClick={() => void releasePasses()}>
-              Release Access Passes ({unreleasedCount})
-            </Button>
-          ) : null}
-        </div>
-        {selectedIds.length ? (
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-md-border bg-md-surface p-3">
-            <div className="text-xs text-md-text-muted self-center px-2">{selectedIds.length} selected</div>
-            <Button type="button" variant="secondary" size="sm" onClick={() => void bulkMarkInvited('MANUAL')}>
-              Mark invited (Manual)
-            </Button>
-            <Button type="button" variant="secondary" size="sm" onClick={() => void bulkMarkInvited('EMAIL')}>
-              Mark invited (Email)
-            </Button>
-            <Button type="button" variant="secondary" size="sm" onClick={() => void bulkMarkInvited('WHATSAPP')}>
-              Mark invited (WhatsApp)
-            </Button>
-            <Button type="button" variant="secondary" size="sm" onClick={exportSelected}>
-              Export selected
-            </Button>
-            <Button type="button" variant="secondary" size="sm" onClick={() => void bulkDelete()}>
-              Delete selected
-            </Button>
+      {(() => {
+        const hasUnreleasedCards = guests.some((g) => g.accessCard && !g.accessCard.releasedAt)
+        return (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={`/dashboard/events/${slug}/guests/import`}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-md-border bg-md-surface px-4 text-sm text-md-text-primary hover:bg-md-surface-elevated"
+              >
+                Import CSV
+              </a>
+              <Button type="button" variant="secondary" onClick={() => setShowAdd(true)}>
+                Add Guest
+              </Button>
+              {hasUnreleasedCards ? (
+                <Button type="button" variant="primary" onClick={() => void releasePasses()}>
+                  Release Access Passes
+                </Button>
+              ) : null}
+            </div>
+            {selectedIds.length ? (
+              <div className="flex flex-wrap gap-2 rounded-2xl border border-md-border bg-md-surface p-3">
+                <div className="text-xs text-md-text-muted self-center px-2">{selectedIds.length} selected</div>
+                <Button type="button" variant="secondary" size="sm" onClick={() => void bulkMarkInvited('MANUAL')}>
+                  Mark invited (Manual)
+                </Button>
+                <Button type="button" variant="secondary" size="sm" onClick={() => void bulkMarkInvited('EMAIL')}>
+                  Mark invited (Email)
+                </Button>
+                <Button type="button" variant="secondary" size="sm" onClick={() => void bulkMarkInvited('WHATSAPP')}>
+                  Mark invited (WhatsApp)
+                </Button>
+                <Button type="button" variant="secondary" size="sm" onClick={exportSelected}>
+                  Export selected
+                </Button>
+                <Button type="button" variant="secondary" size="sm" onClick={() => void bulkDelete()}>
+                  Delete selected
+                </Button>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
+        )
+      })()}
 
       {error ? <div className="text-sm text-md-error">{error}</div> : null}
       {loading ? <div className="text-sm text-md-text-muted">Loading…</div> : null}

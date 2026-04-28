@@ -7,6 +7,37 @@ import { Input } from '@/components/ui/Input'
 
 type EventStatus = 'DRAFT' | 'PUBLISHED' | 'LIVE' | 'CONCLUDED' | 'ARCHIVED'
 
+function normaliseWhatsappNumber(raw: string): { normalised: string | null; error: string | null } {
+  // Strip everything except digits and leading +
+  const cleaned = raw.replace(/[\s\-().]/g, '')
+
+  // Remove leading + if present
+  const digitsOnly = cleaned.startsWith('+') ? cleaned.slice(1) : cleaned
+
+  // Must be all digits now
+  if (!/^\d*$/.test(digitsOnly)) {
+    return { normalised: null, error: 'Please enter a valid phone number with country code.' }
+  }
+
+  if (!digitsOnly.length) return { normalised: null, error: null }
+
+  // Must be between 7 and 15 digits (international standard)
+  if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+    return { normalised: null, error: 'Number must be between 7 and 15 digits including country code.' }
+  }
+
+  // Must not start with 0 (international format requires country code, not trunk prefix)
+  if (digitsOnly.startsWith('0')) {
+    return {
+      normalised: null,
+      error:
+        'Please include the country code (e.g. 44 for UK, 234 for Nigeria, 971 for UAE). Remove the leading 0.',
+    }
+  }
+
+  return { normalised: digitsOnly, error: null }
+}
+
 export function EventSettingsEditor({
   slug,
   initial,
@@ -24,6 +55,8 @@ export function EventSettingsEditor({
     dressCode: string
     description: string
     rsvpOpen: boolean
+    whatsappNumber?: string | null
+    whatsappTemplate?: string | null
   }
 }) {
   const [form, setForm] = React.useState(initial)
@@ -31,10 +64,29 @@ export function EventSettingsEditor({
   const [error, setError] = React.useState<string | null>(null)
   const [done, setDone] = React.useState(false)
 
+  const [whatsappRaw, setWhatsappRaw] = React.useState<string>(initial.whatsappNumber ?? '')
+  const [whatsappNormalised, setWhatsappNormalised] = React.useState<string | null>(() => {
+    const r = normaliseWhatsappNumber(initial.whatsappNumber ?? '')
+    return r.normalised
+  })
+  const [whatsappError, setWhatsappError] = React.useState<string | null>(() => normaliseWhatsappNumber(initial.whatsappNumber ?? '').error)
+  const [whatsappTemplate, setWhatsappTemplate] = React.useState<string>(
+    initial.whatsappTemplate ?? "Hello, I'm {guestName} reaching out about {eventName}.",
+  )
+
+  function handleWhatsappInput(v: string) {
+    setWhatsappRaw(v)
+    const res = normaliseWhatsappNumber(v)
+    setWhatsappNormalised(res.normalised)
+    setWhatsappError(res.error)
+  }
+
   async function save() {
     setError(null)
     setDone(false)
     if (!form.name.trim()) return setError('Event name is required.')
+    const n = normaliseWhatsappNumber(whatsappRaw)
+    if (n.error) return setError(n.error)
     setSaving(true)
     try {
       const res = await fetch(`/api/dashboard/events/${encodeURIComponent(slug)}/settings`, {
@@ -52,6 +104,8 @@ export function EventSettingsEditor({
           dressCode: form.dressCode ? form.dressCode : null,
           description: form.description ? form.description : null,
           rsvpOpen: form.rsvpOpen,
+          whatsappNumber: whatsappNormalised ? whatsappNormalised : null,
+          whatsappTemplate: whatsappTemplate.trim().length ? whatsappTemplate : null,
         }),
       })
       if (!res.ok) {
@@ -140,6 +194,75 @@ export function EventSettingsEditor({
         >
           {form.rsvpOpen ? 'On' : 'Off'}
         </button>
+      </div>
+
+      <div style={{ marginTop: '32px' }}>
+        <p
+          style={{
+            fontSize: '11px',
+            letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+            color: 'var(--md-accent)',
+            marginBottom: '16px',
+          }}
+        >
+          WhatsApp Concierge
+        </p>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--md-text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              display: 'block',
+              marginBottom: '6px',
+            }}
+          >
+            WhatsApp Number
+          </label>
+          <input
+            type="text"
+            value={whatsappRaw}
+            onChange={(e) => handleWhatsappInput(e.target.value)}
+            placeholder="+44 7700 900000 or 447700900000"
+            className="h-11 w-full rounded-xl border border-md-border bg-md-surface px-4 text-md-text-primary outline outline-0 outline-offset-2 focus-visible:outline-2 focus-visible:outline-md-accent"
+          />
+          {whatsappNormalised ? (
+            <p style={{ fontSize: '0.75rem', color: 'var(--md-success)', marginTop: '6px' }}>
+              ✓ Will use: {whatsappNormalised} — Preview: wa.me/{whatsappNormalised}
+            </p>
+          ) : null}
+          {whatsappError ? (
+            <p style={{ fontSize: '0.75rem', color: 'var(--md-error)', marginTop: '6px' }}>{whatsappError}</p>
+          ) : null}
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--md-text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              display: 'block',
+              marginBottom: '6px',
+            }}
+          >
+            Pre-filled Message Template
+          </label>
+          <input
+            type="text"
+            value={whatsappTemplate}
+            onChange={(e) => setWhatsappTemplate(e.target.value)}
+            placeholder="Hello, I'm {guestName} reaching out about {eventName}."
+            className="h-11 w-full rounded-xl border border-md-border bg-md-surface px-4 text-md-text-primary outline outline-0 outline-offset-2 focus-visible:outline-2 focus-visible:outline-md-accent"
+          />
+          <p style={{ fontSize: '0.7rem', color: 'var(--md-text-subtle)', marginTop: '4px' }}>
+            Use {'{guestName}'} and {'{eventName}'} as placeholders. They are replaced automatically for each guest.
+          </p>
+        </div>
       </div>
 
       {error ? <div className="text-sm text-md-error">{error}</div> : null}

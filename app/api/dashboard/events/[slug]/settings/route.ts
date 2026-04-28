@@ -38,6 +38,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
       dressCode: true,
       description: true,
       rsvpOpen: true,
+      whatsappNumber: true,
+      whatsappTemplate: true,
     },
   })
   if (!event) return apiError('Event not found', 'EVENT_NOT_FOUND', 404)
@@ -77,6 +79,26 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ s
   if (bodyRaw.description === null) data.description = null
   if (typeof bodyRaw.description === 'string') data.description = bodyRaw.description.trim() || null
   if (typeof bodyRaw.rsvpOpen === 'boolean') data.rsvpOpen = bodyRaw.rsvpOpen
+
+  if (bodyRaw.whatsappNumber === null) {
+    data.whatsappNumber = null
+  } else if (typeof bodyRaw.whatsappNumber === 'string') {
+    const w = bodyRaw.whatsappNumber.trim()
+    if (w.length === 0) data.whatsappNumber = null
+    else {
+      if (!/^\d{7,15}$/.test(w)) {
+        return apiError('WhatsApp number must be 7-15 digits including country code.', 'INVALID_WHATSAPP_NUMBER', 400)
+      }
+      data.whatsappNumber = w
+    }
+  }
+
+  if (bodyRaw.whatsappTemplate === null) {
+    data.whatsappTemplate = null
+  } else if (typeof bodyRaw.whatsappTemplate === 'string') {
+    const t = bodyRaw.whatsappTemplate.trim()
+    data.whatsappTemplate = t.length ? t : null
+  }
 
   const updated = await prisma.event.update({
     where: { slug },

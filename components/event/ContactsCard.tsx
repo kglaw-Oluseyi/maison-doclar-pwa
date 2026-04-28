@@ -13,11 +13,12 @@ export type Contact = {
 export type ContactsCardProps = {
   contacts: Contact[]
   whatsappNumber: string | null
+  whatsappTemplate?: string | null
   guestName: string
   eventName: string
 }
 
-export function ContactsCard({ contacts, whatsappNumber, guestName, eventName }: ContactsCardProps) {
+export function ContactsCard({ contacts, whatsappNumber, whatsappTemplate, guestName, eventName }: ContactsCardProps) {
   const concierge =
     contacts.find((c) => c.role.toLowerCase().includes('concierge')) ??
     contacts.find((c) => c.role.toLowerCase().includes('concier'))
@@ -55,7 +56,12 @@ export function ContactsCard({ contacts, whatsappNumber, guestName, eventName }:
 
         {whatsappNumber && concierge ? (
           <div className="flex items-center justify-start">
-            <WhatsAppButton whatsappNumber={whatsappNumber} guestName={guestName} eventName={eventName} />
+            <WhatsAppButton
+              whatsappNumber={whatsappNumber}
+              whatsappTemplate={whatsappTemplate}
+              guestName={guestName}
+              eventName={eventName}
+            />
           </div>
         ) : null}
       </div>

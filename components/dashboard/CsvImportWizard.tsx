@@ -33,48 +33,17 @@ const FIELD_LABELS: Record<PwaField, string> = {
 
 const STORAGE_KEY = 'md-csv-import-v1'
 
-function parseCsv(text: string): { headers: string[]; rows: string[][] } {
-  const rows: string[][] = []
-  let cur: string[] = []
-  let field = ''
-  let inQuotes = false
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]
-    const next = text[i + 1]
-    if (inQuotes) {
-      if (c === '"' && next === '"') {
-        field += '"'
-        i++
-      } else if (c === '"') {
-        inQuotes = false
-      } else {
-        field += c
-      }
-      continue
-    }
-    if (c === '"') {
-      inQuotes = true
-      continue
-    }
-    if (c === ',') {
-      cur.push(field)
-      field = ''
-      continue
-    }
-    if (c === '\n') {
-      cur.push(field)
-      field = ''
-      rows.push(cur)
-      cur = []
-      continue
-    }
-    if (c === '\r') continue
-    field += c
-  }
-  cur.push(field)
-  rows.push(cur)
-  const headers = (rows.shift() ?? []).map((h) => h.trim())
-  return { headers, rows: rows.filter((r) => r.some((x) => x.trim().length > 0)) }
+function parseCSVClientSide(text: string): { headers: string[]; rows: string[][] } {
+  const lines = text.trim().split('\n')
+  const headers = (lines[0] ?? '')
+    .split(',')
+    .map((h) => h.trim().replace(/^"|"$/g, ''))
+    .filter(Boolean)
+  const rows = lines
+    .slice(1)
+    .map((line) => line.split(',').map((cell) => cell.trim().replace(/^"|"$/g, '')))
+    .filter((r) => r.some((x) => x.trim().length > 0))
+  return { headers, rows }
 }
 
 function downloadText(filename: string, text: string) {
@@ -92,6 +61,7 @@ function downloadText(filename: string, text: string) {
 export function CsvImportWizard({ slug }: { slug: string }) {
   const [step, setStep] = React.useState<Step>(1)
   const [fileName, setFileName] = React.useState<string>('')
+  const [rowCount, setRowCount] = React.useState<number>(0)
   const [headers, setHeaders] = React.useState<string[]>([])
   const [rows, setRows] = React.useState<string[][]>([])
   const [mapping, setMapping] = React.useState<Record<string, PwaField | ''>>({})
@@ -109,6 +79,7 @@ export function CsvImportWizard({ slug }: { slug: string }) {
         setFileName(parsed.fileName ?? '')
         setHeaders(parsed.headers ?? [])
         setRows(parsed.rows ?? [])
+        setRowCount(Array.isArray(parsed.rows) ? parsed.rows.length : 0)
         setMapping(parsed.mapping ?? {})
       }
     } catch {
@@ -165,14 +136,11 @@ export function CsvImportWizard({ slug }: { slug: string }) {
 
     setImporting(true)
     try {
-      const mappedRows = rows.map((r, idx) => ({ index: idx, mapped: mappedPreviewRow(r), raw: r }))
       const res = await fetch(`/api/dashboard/events/${encodeURIComponent(slug)}/guests/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          headers,
-          mapping,
-          rows,
+          guests: rows.map((r) => mappedPreviewRow(r)),
         }),
       })
       if (!res.ok) {
@@ -219,12 +187,13 @@ export function CsvImportWizard({ slug }: { slug: string }) {
               return
             }
             const reader = new FileReader()
-            reader.onload = () => {
-              const text = String(reader.result ?? '')
-              const parsed = parseCsv(text)
+            reader.onload = (e) => {
+              const text = String((e.target?.result as string) ?? '')
+              const parsed = parseCSVClientSide(text)
               setFileName(file.name)
               setHeaders(parsed.headers)
               setRows(parsed.rows)
+              setRowCount(parsed.rows.length)
               const nextMap: Record<string, PwaField | ''> = {}
               parsed.headers.forEach((h) => (nextMap[h] = ''))
               setMapping(nextMap)
@@ -243,12 +212,13 @@ export function CsvImportWizard({ slug }: { slug: string }) {
                 const file = e.target.files?.[0]
                 if (!file) return
                 const reader = new FileReader()
-                reader.onload = () => {
-                  const text = String(reader.result ?? '')
-                  const parsed = parseCsv(text)
+                reader.onload = (ev) => {
+                  const text = String((ev.target?.result as string) ?? '')
+                  const parsed = parseCSVClientSide(text)
                   setFileName(file.name)
                   setHeaders(parsed.headers)
                   setRows(parsed.rows)
+                  setRowCount(parsed.rows.length)
                   const nextMap: Record<string, PwaField | ''> = {}
                   parsed.headers.forEach((h) => (nextMap[h] = ''))
                   setMapping(nextMap)
@@ -259,7 +229,7 @@ export function CsvImportWizard({ slug }: { slug: string }) {
               }}
             />
           </div>
-          {fileName ? <div className="mt-4 text-sm text-md-text-muted">{fileName} · {rows.length} rows</div> : null}
+          {fileName ? <div className="mt-4 text-sm text-md-text-muted">{fileName} · {rowCount} rows</div> : null}
         </div>
       ) : null}
 

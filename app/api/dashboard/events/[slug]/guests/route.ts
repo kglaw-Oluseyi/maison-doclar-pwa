@@ -21,42 +21,49 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
   const guests = await prisma.guest.findMany({
     where: { eventId: event.id },
     orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      eventId: true,
-      accessToken: true,
-      name: true,
-      email: true,
-      rsvpStatus: true,
-      rsvpDetails: true,
-      tags: true,
-      tableNumber: true,
-      dietaryNotes: true,
-      specialNotes: true,
-      accessibilityNotes: true,
-      invitedAt: true,
-      invitationChannel: true,
-      portalVisitCount: true,
-      portalFirstVisitedAt: true,
-      groupId: true,
-      isPa: true,
-      managedGuestId: true,
-      accessCard: { select: { id: true, releasedAt: true, invalidatedAt: true } },
-      createdAt: true,
-      updatedAt: true,
+    include: {
+      accessCard: {
+        select: {
+          id: true,
+          releasedAt: true,
+          qrToken: true,
+          invalidatedAt: true,
+        },
+      },
     },
   })
 
   return NextResponse.json({
     guests: guests.map((g) => ({
-      ...g,
+      id: g.id,
+      eventId: g.eventId,
+      accessToken: g.accessToken,
+      name: g.name,
+      email: g.email,
+      rsvpStatus: g.rsvpStatus,
+      rsvpDetails: g.rsvpDetails,
+      tags: g.tags,
+      tableNumber: g.tableNumber,
+      dietaryNotes: g.dietaryNotes,
+      specialNotes: g.specialNotes,
+      accessibilityNotes: g.accessibilityNotes,
+      invitedAt: g.invitedAt?.toISOString() ?? null,
+      invitationChannel: g.invitationChannel,
+      portalVisitCount: g.portalVisitCount,
+      portalFirstVisitedAt: g.portalFirstVisitedAt?.toISOString() ?? null,
+      groupId: g.groupId,
+      isPa: g.isPa,
+      managedGuestId: g.managedGuestId,
+      accessCard: g.accessCard
+        ? {
+            id: g.accessCard.id,
+            qrToken: g.accessCard.qrToken,
+            releasedAt: g.accessCard.releasedAt?.toISOString() ?? null,
+            invalidatedAt: g.accessCard.invalidatedAt?.toISOString() ?? null,
+          }
+        : null,
       createdAt: g.createdAt.toISOString(),
       updatedAt: g.updatedAt.toISOString(),
-      invitedAt: g.invitedAt?.toISOString() ?? null,
-      portalFirstVisitedAt: g.portalFirstVisitedAt?.toISOString() ?? null,
-      accessCard: g.accessCard
-        ? { ...g.accessCard, releasedAt: g.accessCard.releasedAt?.toISOString() ?? null, invalidatedAt: g.accessCard.invalidatedAt?.toISOString() ?? null }
-        : null,
     })),
   })
 }

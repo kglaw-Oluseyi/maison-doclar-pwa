@@ -33,13 +33,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
 
   const bodyRaw: unknown = await request.json().catch(() => null)
   if (!isRecord(bodyRaw)) return apiError('Invalid payload', 'INVALID_PAYLOAD', 400)
+
+  // New client-side flow: send mapped guest objects directly.
+  const guestsPayload = Array.isArray((bodyRaw as any).guests) ? ((bodyRaw as any).guests as unknown[]) : null
   const headers = Array.isArray(bodyRaw.headers) ? bodyRaw.headers.filter((h) => typeof h === 'string') : []
   const mapping = isRecord(bodyRaw.mapping) ? (bodyRaw.mapping as Record<string, string>) : {}
   const rows = Array.isArray(bodyRaw.rows) ? (bodyRaw.rows as unknown[]) : []
-  if (!headers.length || !rows.length) return apiError('Missing CSV data', 'MISSING_CSV', 400)
 
-  const mappedNameCols = Object.entries(mapping).filter(([, v]) => v === 'name').map(([k]) => k)
-  if (!mappedNameCols.length) return apiError('Name mapping required', 'MISSING_NAME_MAPPING', 400)
+  if (!guestsPayload && (!headers.length || !rows.length)) return apiError('Missing CSV data', 'MISSING_CSV', 400)
+  if (!guestsPayload) {
+    const mappedNameCols = Object.entries(mapping).filter(([, v]) => v === 'name').map(([k]) => k)
+    if (!mappedNameCols.length) return apiError('Name mapping required', 'MISSING_NAME_MAPPING', 400)
+  }
 
   let created = 0
   let updated = 0
@@ -47,25 +52,34 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   const errorLines: string[] = []
   errorLines.push(['Row', 'Error'].join(','))
 
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i]
-    if (!Array.isArray(r)) {
-      skipped++
-      errorLines.push([String(i + 2), escapeField('Invalid row')].join(','))
-      continue
+  const toMappedObject = (i: number): { rowNumber: number; obj: Record<string, string> } => {
+    if (guestsPayload) {
+      const raw = guestsPayload[i]
+      const obj: Record<string, string> = {}
+      if (isRecord(raw)) {
+        for (const [k, v] of Object.entries(raw)) obj[k] = typeof v === 'string' ? v : String(v ?? '')
+      }
+      return { rowNumber: i + 2, obj }
     }
-
+    const r = rows[i]
+    if (!Array.isArray(r)) return { rowNumber: i + 2, obj: {} }
     const obj: Record<string, string> = {}
     headers.forEach((h, idx) => {
       const field = mapping[h]
       if (!field) return
       obj[field] = typeof r[idx] === 'string' ? r[idx] : String(r[idx] ?? '')
     })
+    return { rowNumber: i + 2, obj }
+  }
+
+  const total = guestsPayload ? guestsPayload.length : rows.length
+  for (let i = 0; i < total; i++) {
+    const { rowNumber, obj } = toMappedObject(i)
 
     const name = (obj.name ?? '').trim()
     if (!name) {
       skipped++
-      errorLines.push([String(i + 2), escapeField('Missing name')].join(','))
+      errorLines.push([String(rowNumber), escapeField('Missing name')].join(','))
       continue
     }
     const email = (obj.email ?? '').trim()
@@ -111,7 +125,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
       created++
     } catch (e: any) {
       skipped++
-      errorLines.push([String(i + 2), escapeField(typeof e?.message === 'string' ? e.message : 'Failed')].join(','))
+      errorLines.push([String(rowNumber), escapeField(typeof e?.message === 'string' ? e.message : 'Failed')].join(','))
     }
   }
 

@@ -110,6 +110,7 @@ export default async function EventPortalPage(props: {
       itinerary: true,
       contacts: true,
       whatsappNumber: true,
+      whatsappTemplate: true,
       designConfig: true,
       contentConfig: true,
       featureFlags: true,
@@ -259,6 +260,7 @@ export default async function EventPortalPage(props: {
         <ContactsCard
           contacts={contacts}
           whatsappNumber={event.whatsappNumber}
+          whatsappTemplate={event.whatsappTemplate}
           guestName={portalGuest.name}
           eventName={event.name}
         />

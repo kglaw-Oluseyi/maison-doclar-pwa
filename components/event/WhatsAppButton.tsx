@@ -6,8 +6,21 @@ import { Button } from '@/components/ui/Button'
 
 export type WhatsAppButtonProps = {
   whatsappNumber: string
+  whatsappTemplate?: string | null
   guestName: string
   eventName: string
+}
+
+function buildWhatsappUrl(number: string, template: string | null | undefined, guestName: string, eventName: string): string {
+  const baseUrl = `https://wa.me/${number}`
+
+  if (!template) {
+    const defaultMessage = `Hello, I'm ${guestName} reaching out about ${eventName}.`
+    return `${baseUrl}?text=${encodeURIComponent(defaultMessage)}`
+  }
+
+  const message = template.replace('{guestName}', guestName).replace('{eventName}', eventName)
+  return `${baseUrl}?text=${encodeURIComponent(message)}`
 }
 
 function WhatsAppIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -26,9 +39,8 @@ function WhatsAppIcon(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
-export function WhatsAppButton({ whatsappNumber, guestName, eventName }: WhatsAppButtonProps) {
-  const message = `Hello, I'm ${guestName} reaching out about ${eventName}.`
-  const href = `https://wa.me/${encodeURIComponent(whatsappNumber)}?text=${encodeURIComponent(message)}`
+export function WhatsAppButton({ whatsappNumber, whatsappTemplate, guestName, eventName }: WhatsAppButtonProps) {
+  const href = buildWhatsappUrl(whatsappNumber, whatsappTemplate, guestName, eventName)
 
   return (
     <Button
