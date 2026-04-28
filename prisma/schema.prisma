@@ -26,6 +26,8 @@ model Event {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   guests         Guest[]
+  pwaConfig       PwaConfig?
+  pwaInstallEvents PwaInstallEvent[]
 }
 
 model Guest {
@@ -49,5 +51,26 @@ enum RSVPStatus {
   PENDING
   ACCEPTED
   DECLINED
+}
+
+model PwaConfig {
+  id                 String   @id @default(uuid())
+  eventId            String   @unique
+  event              Event    @relation(fields: [eventId], references: [id])
+  installHeadline    String   @default("Save to your home screen")
+  installBody        String   @default("Access your event guide instantly, even offline.")
+  screenshotApproved Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model PwaInstallEvent {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  guestId   String?
+  eventType String
+  userAgent String?
+  createdAt DateTime @default(now())
 }
 

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 
 import { prisma } from '@/lib/prisma'
 
@@ -12,6 +13,7 @@ import { ItineraryCard, type ItineraryBlock } from '@/components/event/Itinerary
 import { ContactsCard, type Contact } from '@/components/event/ContactsCard'
 import { SaveToCalendarButton } from '@/components/event/SaveToCalendarButton'
 import { Card } from '@/components/ui/Card'
+import { PwaOrchestrator } from '@/components/pwa/PwaOrchestrator'
 
 type DesignConfig = Record<string, unknown>
 
@@ -22,6 +24,36 @@ function parseJsonArray<T>(value: unknown): T[] {
 function parseJsonObject(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
   return value as Record<string, unknown>
+}
+
+type PageProps = {
+  params: { slug: string }
+  searchParams: { token?: string }
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const event = await prisma.event.findUnique({
+    where: { slug: params.slug },
+    select: { name: true, description: true, designConfig: true },
+  })
+  if (!event) return {}
+
+  const config = event.designConfig as Record<string, unknown>
+  const palette = (config?.palette ?? {}) as Record<string, string>
+
+  return {
+    title: event.name,
+    description: event.description ?? event.name,
+    other: {
+      'theme-color': palette.accent ?? '#B79F85',
+    },
+    manifest: `/events/${params.slug}/manifest.webmanifest`,
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: event.name,
+    },
+  }
 }
 
 function AccessDenied() {
@@ -70,6 +102,7 @@ export default async function EventPortalPage(props: {
       contacts: true,
       whatsappNumber: true,
       designConfig: true,
+      pwaConfig: { select: { installHeadline: true, installBody: true } },
     },
   })
 
@@ -125,6 +158,15 @@ export default async function EventPortalPage(props: {
           eventName={event.name}
         />
       ) : null}
+
+      <PwaOrchestrator
+        slug={slug}
+        eventId={event.id}
+        guestId={guest.id}
+        eventName={event.name}
+        installHeadline={event.pwaConfig?.installHeadline ?? 'Save to your home screen'}
+        installBody={event.pwaConfig?.installBody ?? 'Access your event guide instantly, even offline.'}
+      />
     </EventShell>
   )
 }

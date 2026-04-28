@@ -92,6 +92,21 @@ async function main() {
     },
   })
 
+  await prisma.pwaConfig.upsert({
+    where: { eventId: event.id },
+    update: {
+      installHeadline: 'Save to your home screen',
+      installBody: 'Access your event guide instantly, even offline.',
+      screenshotApproved: false,
+    },
+    create: {
+      eventId: event.id,
+      installHeadline: 'Save to your home screen',
+      installBody: 'Access your event guide instantly, even offline.',
+      screenshotApproved: false,
+    },
+  })
+
   const guests = [
     {
       accessToken: '11111111-1111-1111-1111-111111111111',
