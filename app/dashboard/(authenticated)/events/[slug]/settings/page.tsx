@@ -22,6 +22,8 @@ export default async function EventSettingsPage(props: { params: Promise<{ slug:
       dressCode: true,
       description: true,
       rsvpOpen: true,
+      whatsappNumber: true,
+      whatsappTemplate: true,
     },
   })
   if (!event) notFound()
@@ -51,6 +53,8 @@ export default async function EventSettingsPage(props: { params: Promise<{ slug:
                   dressCode: event.dressCode ?? '',
                   description: event.description ?? '',
                   rsvpOpen: event.rsvpOpen,
+                  whatsappNumber: event.whatsappNumber,
+                  whatsappTemplate: event.whatsappTemplate,
                 }}
               />
             </div>

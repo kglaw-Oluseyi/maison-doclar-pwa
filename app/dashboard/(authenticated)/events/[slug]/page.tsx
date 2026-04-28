@@ -91,22 +91,22 @@ export default async function DashboardEventPage(props: { params: Promise<{ slug
                 </Button>
               </a>
               <ExportButton slug={event.slug} />
-            {flags.dietaryExportEnabled === true ? (
-              <a
-                href={`/api/dashboard/events/${event.slug}/exports/dietary`}
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-md-border bg-md-surface px-4 text-sm text-md-text-primary hover:bg-md-surface-elevated"
-              >
-                Dietary CSV
-              </a>
-            ) : null}
-            {flags.accessibilityExportEnabled === true ? (
-              <a
-                href={`/api/dashboard/events/${event.slug}/exports/accessibility`}
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-md-border bg-md-surface px-4 text-sm text-md-text-primary hover:bg-md-surface-elevated"
-              >
-                Accessibility CSV
-              </a>
-            ) : null}
+              {flags.dietaryExportEnabled === true ? (
+                <a
+                  href={`/api/dashboard/events/${event.slug}/exports/dietary`}
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-md-border bg-md-surface px-4 text-sm text-md-text-primary hover:bg-md-surface-elevated"
+                >
+                  Dietary CSV
+                </a>
+              ) : null}
+              {flags.accessibilityExportEnabled === true ? (
+                <a
+                  href={`/api/dashboard/events/${event.slug}/exports/accessibility`}
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-md-border bg-md-surface px-4 text-sm text-md-text-primary hover:bg-md-surface-elevated"
+                >
+                  Accessibility CSV
+                </a>
+              ) : null}
             </div>
           </div>
 
@@ -114,12 +114,7 @@ export default async function DashboardEventPage(props: { params: Promise<{ slug
 
           <EventStatusControl slug={event.slug} initialStatus={event.status as any} />
 
-          <RSVPStats
-            total={guests.length}
-            accepted={totals.accepted}
-            declined={totals.declined}
-            pending={totals.pending}
-          />
+          <RSVPStats total={guests.length} accepted={totals.accepted} declined={totals.declined} pending={totals.pending} />
 
           <Card title="Guests" className="p-0">
             <div className="p-6">
