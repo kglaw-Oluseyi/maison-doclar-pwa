@@ -146,7 +146,7 @@ export function PwaOrchestrator({
       const timer = window.setTimeout(() => {
         setShowIosGuide(true)
         void logEvent('prompt_shown')
-      }, 30000)
+      }, 10000)
       return () => {
         window.clearTimeout(timer)
         mq.removeEventListener?.('change', applyStandalone)
@@ -162,8 +162,8 @@ export function PwaOrchestrator({
       const timer = window.setTimeout(() => {
         setInstallState('prompt-ready')
         void logEvent('prompt_shown')
-      }, 30000)
-      window.setTimeout(() => window.clearTimeout(timer), 31000)
+      }, 10000)
+      window.setTimeout(() => window.clearTimeout(timer), 11000)
     }
 
     window.addEventListener('beforeinstallprompt', handler)

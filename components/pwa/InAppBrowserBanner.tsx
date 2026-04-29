@@ -2,29 +2,8 @@
 
 import * as React from 'react'
 
-function CopyIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false" {...props}>
-      <path
-        fill="currentColor"
-        d="M8 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2V7Zm2 0v11h9V7h-9ZM3 6a2 2 0 0 1 2-2h1a1 1 0 1 1 0 2H5v11h1a1 1 0 1 1 0 2H5a2 2 0 0 1-2-2V6Z"
-      />
-    </svg>
-  )
-}
-
 export function InAppBrowserBanner() {
   const [copied, setCopied] = React.useState(false)
-
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // ignore
-    }
-  }
 
   return (
     <div
@@ -33,39 +12,57 @@ export function InAppBrowserBanner() {
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 70,
+        zIndex: 100,
         background: 'var(--md-surface-elevated)',
-        borderBottom: '1px solid var(--md-border)',
-        padding: '12px 16px',
+        borderBottom: '1px solid var(--md-accent)',
+        padding: '16px 20px',
       }}
     >
-      <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', gap: 12, alignItems: 'center' }}>
-        <div style={{ flex: 1, fontSize: 13, color: 'var(--md-text-primary)', lineHeight: 1.4 }}>
-          For the best experience, open this page in Safari.
-        </div>
-        <button
-          type="button"
-          onClick={copyLink}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            border: '1px solid var(--md-border)',
-            background: 'transparent',
-            color: copied ? 'var(--md-accent)' : 'var(--md-text-muted)',
-            borderRadius: 10,
-            padding: '10px 12px',
-            cursor: 'pointer',
-            fontSize: 12,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-          }}
-        >
-          <CopyIcon />
-          {copied ? 'Copied' : 'Copy link'}
-        </button>
-      </div>
+      <p
+        style={{
+          fontFamily: 'var(--md-font-heading)',
+          fontSize: '1.1rem',
+          color: 'var(--md-text-primary)',
+          marginBottom: '6px',
+        }}
+      >
+        Open in your browser for the best experience
+      </p>
+      <p
+        style={{
+          fontFamily: 'var(--md-font-body)',
+          fontSize: '0.8rem',
+          color: 'var(--md-text-muted)',
+          marginBottom: '12px',
+        }}
+      >
+        Tap the menu icon (⋯ or ⋮) and select &quot;Open in Safari&quot; or &quot;Open in Chrome&quot; to access your full
+        event experience.
+      </p>
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(window.location.href)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+          } catch {}
+        }}
+        style={{
+          padding: '10px 20px',
+          border: '1px solid var(--md-accent)',
+          background: 'transparent',
+          color: 'var(--md-accent)',
+          fontFamily: 'var(--md-font-body)',
+          fontSize: '0.75rem',
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          borderRadius: '8px',
+          cursor: 'pointer',
+        }}
+      >
+        {copied ? 'Link Copied ✓' : 'Copy Link'}
+      </button>
     </div>
   )
 }
-

@@ -14,6 +14,8 @@ import { ContactsCard, type Contact } from '@/components/event/ContactsCard'
 import { SaveToCalendarButton } from '@/components/event/SaveToCalendarButton'
 import { Card } from '@/components/ui/Card'
 import { PwaOrchestrator } from '@/components/pwa/PwaOrchestrator'
+import { TokenPersist } from '@/components/pwa/TokenPersist'
+import { TokenRestore } from '@/components/pwa/TokenRestore'
 import { AccessPassCard } from '@/components/qr/AccessPassCard'
 import { RemindersSection } from '@/components/concierge/RemindersSection'
 import { ChatbotCard } from '@/components/concierge/ChatbotCard'
@@ -91,6 +93,10 @@ export default async function EventPortalPage(props: {
   const { slug } = await props.params
   const { token } = await props.searchParams
 
+  if (!token) {
+    return <TokenRestore slug={slug} />
+  }
+
   const event = await prisma.event.findUnique({
     where: { slug },
     select: {
@@ -120,7 +126,6 @@ export default async function EventPortalPage(props: {
   })
 
   if (!event) notFound()
-  if (!token) return <AccessDenied />
 
   // Block DRAFT events from guest access
   if (event.status === 'DRAFT') {
@@ -205,6 +210,7 @@ export default async function EventPortalPage(props: {
 
   return (
     <EventShell>
+      <TokenPersist slug={slug} token={token} />
       {guest.isPa && managedGuest ? (
         <div
           style={{

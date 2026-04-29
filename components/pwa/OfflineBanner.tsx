@@ -10,19 +10,33 @@ export function OfflineBanner() {
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 60,
-        borderLeft: '4px solid var(--md-accent)',
-        background: 'var(--md-surface-elevated)',
-        borderBottom: '1px solid var(--md-border)',
-        padding: '10px 16px',
-        fontSize: '12px',
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        color: 'var(--md-text-primary)',
+        zIndex: 90,
+        background: 'var(--md-surface)',
+        borderBottom: '2px solid var(--md-accent)',
+        padding: '10px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
       }}
     >
-      Offline — showing your saved event details.
+      <div
+        style={{
+          width: '6px',
+          height: '6px',
+          borderRadius: '50%',
+          background: 'var(--md-accent)',
+          flexShrink: 0,
+        }}
+      />
+      <p
+        style={{
+          fontFamily: 'var(--md-font-body)',
+          fontSize: '0.8rem',
+          color: 'var(--md-text-muted)',
+        }}
+      >
+        Your saved event details are available offline
+      </p>
     </div>
   )
 }
-
