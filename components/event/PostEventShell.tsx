@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/Card'
 import { AccessPassCard } from '@/components/qr/AccessPassCard'
+import { TokenPersist } from '@/components/pwa/TokenPersist'
 import { FeedbackForm } from './FeedbackForm'
 
 type FeedbackQuestion = { id: string; question: string; type: 'text' | 'rating' }
@@ -53,6 +54,7 @@ export function PostEventShell({
 
   return (
     <div className="space-y-6">
+      <TokenPersist slug={event.slug} token={guest.accessToken} />
       <Card noPadding>
         <div className="p-6 text-center">
           <a
